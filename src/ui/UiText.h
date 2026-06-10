@@ -4,6 +4,10 @@ namespace ui::text {
 
 constexpr char AppName[] = "RetroTape";
 constexpr char ChooseSystem[] = "Choose a system";
+constexpr char TkTape[] = "Spectrum tape";
+constexpr char MsxTape[] = "CAS tape";
+constexpr char WavAudio[] = "Audio files";
+constexpr char DeviceSetup[] = "Device setup";
 constexpr char HomeReady[] = "Home ready";
 constexpr char Settings[] = "Settings";
 constexpr char Configuration[] = "Configuration";

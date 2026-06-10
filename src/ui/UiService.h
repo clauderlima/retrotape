@@ -95,9 +95,14 @@ class UiService {
   UiAction browserSelectAction(size_t row) const;
   UiAction wifiSelectAction(size_t row) const;
   UiAction wifiKeyAction(size_t index) const;
-  void drawHeader(const char* title, const char* subtitle);
+  void drawHeader(const char* title, const char* subtitle, bool branded = false);
   void drawBackButton();
-  void drawButton(int x, int y, int w, int h, const char* label, uint16_t fill, uint16_t textColor, UiAction action);
+  void drawButton(int x, int y, int w, int h, const char* label, uint16_t fill,
+                  uint16_t textColor, UiAction action, UiIcon icon = UiIcon::None);
+  void drawHomeTile(int x, int y, int w, int h, const char* label, const char* detail,
+                    uint16_t accent, UiIcon icon, UiAction action);
+  void drawListItem(int x, int y, int w, int h, const char* label, uint16_t accent,
+                    UiIcon icon, UiAction action);
   void drawTextFit(const String& text, int x, int y, int w, uint16_t textColor, uint16_t background);
   void drawFooter(const char* message, uint16_t color);
   void formatTime(uint32_t ms, char* output, size_t outputSize) const;

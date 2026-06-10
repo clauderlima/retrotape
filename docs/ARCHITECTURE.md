@@ -45,8 +45,13 @@ values. It does not perform storage, networking, or playback operations.
 - `UiComponents` provides reusable headers, buttons, fitted text, and time
   formatting.
 
-The visual redesign and cassette logo are intentionally isolated from the
-application and audio code.
+The Phase 2 visual system uses a neutral charcoal background with teal, coral,
+yellow, and blue functional accents. The Home screen keeps the 2 x 2 layout,
+while reusable icons distinguish tape, computer, audio, settings, files,
+network state, and playback controls. The RetroTape brand header includes a
+lightweight cassette mark drawn with display primitives, so it requires no
+bitmap storage. All visual work remains isolated from application and audio
+code.
 
 ## Storage and format detection
 

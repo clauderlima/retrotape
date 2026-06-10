@@ -12,7 +12,7 @@ bool UiService::begin() {
   display_.setBrightness(255);
   components_.clear();
   display_.setTextDatum(textdatum_t::top_left);
-  display_.setTextColor(TFT_WHITE, TFT_BLACK);
+  display_.setTextColor(theme::TextPrimary, theme::Background);
   display_.setFont(&fonts::Font2);
 
   Serial.print("CYD display size: ");
@@ -66,20 +66,23 @@ void UiService::showHome(const char* status) {
   const int margin = 12;
   const int gap = 10;
   const int buttonW = (screenW - (margin * 2) - gap) / 2;
-  const int buttonH = 48;
+  const int buttonH = 62;
   const int left = margin;
   const int right = margin + buttonW + gap;
 
-  display_.fillScreen(TFT_BLACK);
-  drawHeader(text::AppName, text::ChooseSystem);
+  components_.clear();
+  drawHeader(text::AppName, text::ChooseSystem, true);
 
-  drawButton(left, 58, buttonW, buttonH, "TK90X / ZX", TFT_DARKCYAN, TFT_WHITE, UiAction::OpenTk90x);
-  drawButton(right, 58, buttonW, buttonH, "MSX", TFT_DARKGREEN, TFT_WHITE, UiAction::OpenMsx);
-  drawButton(left, 116, buttonW, buttonH, "WAV", TFT_MAROON, TFT_WHITE, UiAction::OpenWav);
-  drawButton(right, 116, buttonW, buttonH, text::Settings, TFT_DARKGREY, TFT_WHITE,
-             UiAction::OpenMenu);
+  drawHomeTile(left, 58, buttonW, buttonH, "TK90X / ZX", text::TkTape,
+               theme::Accent, UiIcon::Cassette, UiAction::OpenTk90x);
+  drawHomeTile(right, 58, buttonW, buttonH, "MSX", text::MsxTape,
+               theme::Primary, UiIcon::Computer, UiAction::OpenMsx);
+  drawHomeTile(left, 130, buttonW, buttonH, "WAV", text::WavAudio,
+               theme::Info, UiIcon::Wave, UiAction::OpenWav);
+  drawHomeTile(right, 130, buttonW, buttonH, text::Settings, text::DeviceSetup,
+               theme::Secondary, UiIcon::Sliders, UiAction::OpenMenu);
 
-  drawFooter(status == nullptr ? text::HomeReady : status, TFT_DARKGREEN);
+  drawFooter(status == nullptr ? text::HomeReady : status, theme::Success);
 }
 
 void UiService::showFileBrowser(const char* title, const char* path, const storage::FileEntry* entries,
@@ -98,7 +101,7 @@ void UiService::showFileBrowser(const char* title, const char* path, const stora
 
   if (entryCount == 0) {
     display_.setTextDatum(textdatum_t::top_left);
-    display_.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
+    display_.setTextColor(theme::TextSecondary, theme::Background);
     display_.setFont(&fonts::Font2);
     display_.drawString(text::NoFiles, 18, 92);
   } else {
@@ -109,16 +112,17 @@ void UiService::showFileBrowser(const char* title, const char* path, const stora
       }
 
       const storage::FileEntry& entry = entries[index];
-      String label = entry.isDirectory ? "[DIR] " : "      ";
-      label += entry.name;
-      drawButton(listX, rowY + static_cast<int>(row) * (rowH + rowGap), rowW, rowH, label.c_str(),
-                 entry.isDirectory ? TFT_NAVY : TFT_DARKCYAN, TFT_WHITE, browserSelectAction(row));
+      drawListItem(listX, rowY + static_cast<int>(row) * (rowH + rowGap), rowW,
+                   rowH, entry.name.c_str(),
+                   entry.isDirectory ? theme::Accent : theme::Primary,
+                   entry.isDirectory ? UiIcon::Folder : UiIcon::File,
+                   browserSelectAction(row));
     }
   }
 
-  drawButton(10, 188, 84, 28, text::Previous, hasPrevious ? TFT_DARKGREY : TFT_BLACK, TFT_WHITE,
+  drawButton(10, 188, 84, 28, text::Previous, theme::Info, theme::TextPrimary,
              hasPrevious ? UiAction::BrowserPrevious : UiAction::None);
-  drawButton(226, 188, 84, 28, text::Next, hasNext ? TFT_DARKGREY : TFT_BLACK, TFT_WHITE,
+  drawButton(226, 188, 84, 28, text::Next, theme::Info, theme::TextPrimary,
              hasNext ? UiAction::BrowserNext : UiAction::None);
 
   char pageInfo[40];
@@ -127,11 +131,11 @@ void UiService::showFileBrowser(const char* title, const char* path, const stora
   snprintf(pageInfo, sizeof(pageInfo), "%u-%u of %u", static_cast<unsigned>(first), static_cast<unsigned>(last),
            static_cast<unsigned>(totalCount));
   display_.setTextDatum(textdatum_t::middle_center);
-  display_.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
+  display_.setTextColor(theme::TextSecondary, theme::Background);
   display_.setFont(&fonts::Font2);
   display_.drawString(pageInfo, display_.width() / 2, 202);
 
-  drawFooter(text::SelectFile, TFT_DARKGREEN);
+  drawFooter(text::SelectFile, theme::Primary);
 }
 
 void UiService::showPlayer(const char* filename, const char* format, const char* status, uint32_t elapsedMs,
@@ -141,19 +145,23 @@ void UiService::showPlayer(const char* filename, const char* format, const char*
   drawHeader(text::Player, format);
   drawBackButton();
 
+  components_.drawPanel(12, 58, display_.width() - 24, 84);
   display_.setTextDatum(textdatum_t::top_left);
-  display_.setTextColor(TFT_WHITE, TFT_BLACK);
+  display_.setTextColor(theme::TextSecondary, theme::Surface);
+  display_.setFont(&fonts::Font0);
+  display_.drawString(text::File, 22, 67);
   display_.setFont(&fonts::Font2);
-  display_.drawString(text::File, 16, 62);
-  drawTextFit(String(filename), 16, 84, display_.width() - 32, TFT_LIGHTGREY, TFT_BLACK);
+  drawTextFit(String(filename), 22, 84, display_.width() - 44,
+              theme::TextPrimary, theme::Surface);
 
   updatePlayerProgress(elapsedMs, durationMs, playing);
 
-  drawButton(36, 148, 110, 40, text::Play, playing ? TFT_BLACK : TFT_DARKGREEN, TFT_WHITE,
-             playing ? UiAction::None : UiAction::PlayerPlay);
-  drawButton(174, 148, 110, 40, text::Stop, playing ? TFT_MAROON : TFT_BLACK, TFT_WHITE,
-             playing ? UiAction::PlayerStop : UiAction::None);
-  drawFooter(status == nullptr ? text::Ready : status, TFT_DARKGREEN);
+  drawButton(36, 152, 110, 40, text::Play, theme::Success, theme::TextPrimary,
+             playing ? UiAction::None : UiAction::PlayerPlay, UiIcon::Play);
+  drawButton(174, 152, 110, 40, text::Stop, theme::Danger, theme::TextPrimary,
+             playing ? UiAction::PlayerStop : UiAction::None, UiIcon::Stop);
+  drawFooter(status == nullptr ? text::Ready : status,
+             playing ? theme::Primary : theme::Success);
 }
 
 void UiService::updatePlayerProgress(uint32_t elapsedMs, uint32_t durationMs, bool playing) {
@@ -164,27 +172,29 @@ void UiService::updatePlayerProgress(uint32_t elapsedMs, uint32_t durationMs, bo
   components_.formatTime(durationMs, duration, sizeof(duration));
   snprintf(label, sizeof(label), "%s / %s", elapsed, durationMs == 0 ? "--:--" : duration);
 
-  const int x = 16;
-  const int y = 112;
-  const int w = display_.width() - 32;
-  const int barY = 132;
+  const int x = 22;
+  const int y = 108;
+  const int w = display_.width() - 44;
+  const int barY = 128;
   const int barH = 8;
 
   display_.startWrite();
-  display_.fillRect(x, y, w, 34, TFT_BLACK);
+  display_.fillRect(x, y, w, 31, theme::Surface);
   display_.setTextDatum(textdatum_t::top_left);
-  display_.setTextColor(playing ? TFT_GREEN : TFT_LIGHTGREY, TFT_BLACK);
+  display_.setTextColor(playing ? theme::Primary : theme::TextSecondary,
+                        theme::Surface);
   display_.setFont(&fonts::Font2);
   display_.drawString(label, x, y);
 
-  display_.drawRoundRect(x, barY, w, barH, 3, TFT_DARKGREY);
+  display_.fillRoundRect(x, barY, w, barH, 3, theme::ProgressTrack);
   if (durationMs > 0) {
-    uint32_t fillW = (static_cast<uint64_t>(elapsedMs) * static_cast<uint32_t>(w - 2)) / durationMs;
-    if (fillW > static_cast<uint32_t>(w - 2)) {
-      fillW = w - 2;
+    uint32_t fillW = (static_cast<uint64_t>(elapsedMs) * static_cast<uint32_t>(w)) / durationMs;
+    if (fillW > static_cast<uint32_t>(w)) {
+      fillW = w;
     }
     if (fillW > 0) {
-      display_.fillRoundRect(x + 1, barY + 1, static_cast<int>(fillW), barH - 2, 2, TFT_GREEN);
+      display_.fillRoundRect(x, barY, static_cast<int>(fillW), barH, 3,
+                             theme::Progress);
     }
   }
   display_.endWrite();
@@ -196,27 +206,27 @@ void UiService::showSettings(const char* displayDriver, bool sdMounted, const ch
   drawHeader(text::Settings, text::Configuration);
   drawBackButton();
 
+  components_.drawPanel(12, 58, display_.width() - 24, 84);
   display_.setTextDatum(textdatum_t::top_left);
-  display_.setTextColor(TFT_WHITE, TFT_BLACK);
+  display_.setTextColor(theme::TextSecondary, theme::Surface);
   display_.setFont(&fonts::Font2);
-  display_.drawString("Display:", 18, 64);
-  display_.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
-  display_.drawString(displayDriver, 118, 64);
+  display_.drawString("Display", 22, 68);
+  display_.setTextColor(theme::TextPrimary, theme::Surface);
+  display_.drawString(displayDriver, 112, 68);
 
-  display_.setTextColor(TFT_WHITE, TFT_BLACK);
-  display_.drawString("SD:", 18, 92);
-  display_.setTextColor(sdMounted ? TFT_GREEN : TFT_RED, TFT_BLACK);
-  display_.drawString(sdMounted ? text::Mounted : text::NotMounted, 118, 92);
+  display_.setTextColor(theme::TextSecondary, theme::Surface);
+  display_.drawString("SD card", 22, 94);
+  display_.setTextColor(sdMounted ? theme::Success : theme::Danger, theme::Surface);
+  display_.drawString(sdMounted ? text::Mounted : text::NotMounted, 112, 94);
 
-  display_.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
-  drawTextFit(String(wifiStatus == nullptr ? "WiFi: -" : wifiStatus), 18, 124, display_.width() - 36,
-              TFT_LIGHTGREY, TFT_BLACK);
+  drawTextFit(String(wifiStatus == nullptr ? "Wi-Fi: -" : wifiStatus), 22, 120,
+              display_.width() - 44, theme::TextSecondary, theme::Surface);
 
-  drawButton(18, 154, 132, 34, text::WifiSetup, TFT_DARKCYAN, TFT_WHITE,
-             UiAction::OpenWifiSettings);
-  drawButton(168, 154, 132, 34, text::TapSetup, TFT_MAROON, TFT_WHITE,
-             UiAction::OpenTapSettings);
-  drawFooter(text::SettingsReady, TFT_DARKGREEN);
+  drawButton(18, 152, 132, 40, text::WifiSetup, theme::Info, theme::TextPrimary,
+             UiAction::OpenWifiSettings, UiIcon::Wifi);
+  drawButton(168, 152, 132, 40, text::TapSetup, theme::Secondary,
+             theme::TextPrimary, UiAction::OpenTapSettings, UiIcon::Sliders);
+  drawFooter(text::SettingsReady, theme::Primary);
 }
 
 void UiService::showTapSettings(uint16_t timingPermille, uint8_t amplitude, bool inverted) {
@@ -225,34 +235,40 @@ void UiService::showTapSettings(uint16_t timingPermille, uint8_t amplitude, bool
   drawHeader(text::TapSetup, text::TapCompatibility);
   drawBackButton();
 
+  components_.drawPanel(12, 58, display_.width() - 24, 120);
   display_.setTextDatum(textdatum_t::top_left);
   display_.setFont(&fonts::Font2);
-  display_.setTextColor(TFT_WHITE, TFT_BLACK);
+  display_.setTextColor(theme::TextSecondary, theme::Surface);
 
   char timing[16] = {};
   snprintf(timing, sizeof(timing), "%.1f%%", timingPermille / 10.0F);
-  display_.drawString(text::Timing, 18, 66);
-  display_.setTextColor(TFT_CYAN, TFT_BLACK);
-  display_.drawString(timing, 112, 66);
-  drawButton(198, 58, 48, 30, "-", TFT_DARKGREY, TFT_WHITE, UiAction::TapTimingDown);
-  drawButton(254, 58, 48, 30, "+", TFT_DARKGREEN, TFT_WHITE, UiAction::TapTimingUp);
+  display_.drawString(text::Timing, 22, 68);
+  display_.setTextColor(theme::Primary, theme::Surface);
+  display_.drawString(timing, 108, 68);
+  drawButton(198, 62, 48, 28, "-", theme::Info, theme::TextPrimary,
+             UiAction::TapTimingDown);
+  drawButton(254, 62, 48, 28, "+", theme::Success, theme::TextPrimary,
+             UiAction::TapTimingUp);
 
-  display_.setTextColor(TFT_WHITE, TFT_BLACK);
-  display_.drawString(text::Level, 18, 108);
-  display_.setTextColor(TFT_YELLOW, TFT_BLACK);
+  display_.setTextColor(theme::TextSecondary, theme::Surface);
+  display_.drawString(text::Level, 22, 106);
+  display_.setTextColor(theme::Accent, theme::Surface);
   char level[16] = {};
   const uint16_t levelPercent = (static_cast<uint16_t>(amplitude) * 100U) / 127U;
   snprintf(level, sizeof(level), "%u%%", levelPercent);
-  display_.drawString(level, 112, 108);
-  drawButton(198, 100, 48, 30, "-", TFT_DARKGREY, TFT_WHITE, UiAction::TapLevelDown);
-  drawButton(254, 100, 48, 30, "+", TFT_DARKGREEN, TFT_WHITE, UiAction::TapLevelUp);
+  display_.drawString(level, 108, 106);
+  drawButton(198, 100, 48, 28, "-", theme::Info, theme::TextPrimary,
+             UiAction::TapLevelDown);
+  drawButton(254, 100, 48, 28, "+", theme::Success, theme::TextPrimary,
+             UiAction::TapLevelUp);
 
-  display_.setTextColor(TFT_WHITE, TFT_BLACK);
-  display_.drawString(text::Polarity, 18, 150);
-  drawButton(168, 142, 134, 32, inverted ? text::Inverted : text::Normal,
-             inverted ? TFT_MAROON : TFT_DARKCYAN, TFT_WHITE, UiAction::TapInvert);
+  display_.setTextColor(theme::TextSecondary, theme::Surface);
+  display_.drawString(text::Polarity, 22, 144);
+  drawButton(168, 138, 134, 30, inverted ? text::Inverted : text::Normal,
+             inverted ? theme::Danger : theme::Primary, theme::TextPrimary,
+             UiAction::TapInvert);
 
-  drawFooter(text::TapDefaults, TFT_DARKGREEN);
+  drawFooter(text::TapDefaults, theme::Primary);
 }
 
 void UiService::showWifiList(const network::WifiNetworkInfo* networks, size_t networkCount, size_t offset,
@@ -264,7 +280,7 @@ void UiService::showWifiList(const network::WifiNetworkInfo* networks, size_t ne
 
   if (networkCount == 0) {
     display_.setTextDatum(textdatum_t::top_left);
-    display_.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
+    display_.setTextColor(theme::TextSecondary, theme::Background);
     display_.setFont(&fonts::Font2);
     display_.drawString(text::NoNetworks, 18, 86);
   } else {
@@ -280,23 +296,26 @@ void UiService::showWifiList(const network::WifiNetworkInfo* networks, size_t ne
         break;
       }
 
-      String label = networks[index].encrypted ? "[P] " : "[A] ";
-      label += networks[index].ssid;
+      String label = networks[index].ssid;
       label += " ";
       label += networks[index].rssi;
       label += "dBm";
-      drawButton(listX, rowY + static_cast<int>(row) * (rowH + rowGap), rowW, rowH, label.c_str(), TFT_DARKCYAN,
-                 TFT_WHITE, wifiSelectAction(row));
+      drawListItem(listX, rowY + static_cast<int>(row) * (rowH + rowGap), rowW,
+                   rowH, label.c_str(),
+                   networks[index].encrypted ? theme::Accent : theme::Primary,
+                   networks[index].encrypted ? UiIcon::Lock : UiIcon::Wifi,
+                   wifiSelectAction(row));
     }
   }
 
-  drawButton(10, 188, 78, 28, text::Previous, hasPrevious ? TFT_DARKGREY : TFT_BLACK, TFT_WHITE,
+  drawButton(10, 188, 78, 28, text::Previous, theme::Info, theme::TextPrimary,
              hasPrevious ? UiAction::WifiPrevious : UiAction::None);
-  drawButton(98, 188, 78, 28, text::Refresh, TFT_DARKGREEN, TFT_WHITE, UiAction::WifiRescan);
-  drawButton(230, 188, 78, 28, text::Next, hasNext ? TFT_DARKGREY : TFT_BLACK, TFT_WHITE,
+  drawButton(98, 188, 78, 28, text::Refresh, theme::Success, theme::TextPrimary,
+             UiAction::WifiRescan, UiIcon::Refresh);
+  drawButton(230, 188, 78, 28, text::Next, theme::Info, theme::TextPrimary,
              hasNext ? UiAction::WifiNext : UiAction::None);
 
-  drawFooter(status == nullptr ? text::SelectNetwork : status, TFT_DARKGREEN);
+  drawFooter(status == nullptr ? text::SelectNetwork : status, theme::Primary);
 }
 
 void UiService::showWifiPassword(const char* ssid, const char* password, const char* keyPage, const char* status) {
@@ -306,10 +325,10 @@ void UiService::showWifiPassword(const char* ssid, const char* password, const c
   drawBackButton();
 
   display_.setTextDatum(textdatum_t::top_left);
-  display_.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
+  display_.setTextColor(theme::TextSecondary, theme::Background);
   display_.setFont(&fonts::Font2);
   drawTextFit(String(text::Password) + (password == nullptr ? "" : password), 12, 54, display_.width() - 24,
-              TFT_LIGHTGREY, TFT_BLACK);
+              theme::TextSecondary, theme::Background);
 
   const int keyColumns = 6;
   const int keyCount = 18;
@@ -324,25 +343,29 @@ void UiService::showWifiPassword(const char* ssid, const char* password, const c
     char label[2] = {key, '\0'};
     const int col = static_cast<int>(i % keyColumns);
     const int row = static_cast<int>(i / keyColumns);
-    drawButton(startX + col * (keyW + gap), startY + row * (keyH + gap), keyW, keyH, label, TFT_NAVY, TFT_WHITE,
+    drawButton(startX + col * (keyW + gap), startY + row * (keyH + gap),
+               keyW, keyH, label, theme::Info, theme::TextPrimary,
                key == ' ' ? UiAction::None : wifiKeyAction(i));
   }
 
-  drawButton(8, 176, 72, 30, text::Keys, TFT_DARKCYAN, TFT_WHITE, UiAction::WifiKeyboardNext);
-  drawButton(88, 176, 82, 30, text::Delete, TFT_MAROON, TFT_WHITE, UiAction::WifiBackspace);
-  drawButton(178, 176, 132, 30, text::Connect, TFT_DARKGREEN, TFT_WHITE, UiAction::WifiConnect);
+  drawButton(8, 176, 72, 30, text::Keys, theme::Primary, theme::TextPrimary,
+             UiAction::WifiKeyboardNext);
+  drawButton(88, 176, 82, 30, text::Delete, theme::Danger, theme::TextPrimary,
+             UiAction::WifiBackspace, UiIcon::Delete);
+  drawButton(178, 176, 132, 30, text::Connect, theme::Success,
+             theme::TextPrimary, UiAction::WifiConnect, UiIcon::Connect);
 
-  drawFooter(status == nullptr ? text::EnterPassword : status, TFT_DARKGREEN);
+  drawFooter(status == nullptr ? text::EnterPassword : status, theme::Primary);
 }
 
 void UiService::showStatus(const char* message) {
-  drawFooter(message, TFT_DARKGREEN);
+  drawFooter(message, theme::Success);
   Serial.print("STATUS: ");
   Serial.println(message);
 }
 
 void UiService::showError(const char* message) {
-  drawFooter(message, TFT_MAROON);
+  drawFooter(message, theme::Danger);
   Serial.print("ERROR: ");
   Serial.println(message);
 }
@@ -448,18 +471,33 @@ UiAction UiService::wifiKeyAction(size_t index) const {
   }
 }
 
-void UiService::drawHeader(const char* title, const char* subtitle) {
-  components_.drawHeader(title, subtitle);
+void UiService::drawHeader(const char* title, const char* subtitle, bool branded) {
+  components_.drawHeader(title, subtitle, branded);
 }
 
 void UiService::drawBackButton() {
-  drawButton(8, 8, 58, 28, text::Back, TFT_DARKGREY, TFT_WHITE, UiAction::Back);
-  addTouchZone(0, 0, 104, 52, UiAction::Back);
+  components_.drawIconButton(8, 8, 36, 36, UiIcon::Back, theme::TextPrimary);
+  addTouchZone(0, 0, 52, 52, UiAction::Back);
 }
 
 void UiService::drawButton(int x, int y, int w, int h, const char* label, uint16_t fill, uint16_t textColor,
-                           UiAction action) {
-  components_.drawButton(x, y, w, h, label, fill, textColor, action != UiAction::None);
+                           UiAction action, UiIcon icon) {
+  components_.drawButton(x, y, w, h, label, fill, textColor,
+                         action != UiAction::None, icon);
+  addTouchZone(x, y, w, h, action);
+}
+
+void UiService::drawHomeTile(int x, int y, int w, int h, const char* label,
+                             const char* detail, uint16_t accent, UiIcon icon,
+                             UiAction action) {
+  components_.drawHomeTile(x, y, w, h, label, detail, accent, icon);
+  addTouchZone(x, y, w, h, action);
+}
+
+void UiService::drawListItem(int x, int y, int w, int h, const char* label,
+                             uint16_t accent, UiIcon icon, UiAction action) {
+  components_.drawListItem(x, y, w, h, label, accent, icon,
+                           action != UiAction::None);
   addTouchZone(x, y, w, h, action);
 }
 
@@ -478,11 +516,14 @@ void UiService::drawFooter(const char* message, uint16_t color) {
     footerText += footerSuffix_;
   }
 
-  display_.fillRect(0, y, display_.width(), footerH, color);
+  display_.fillRect(0, y, display_.width(), footerH, theme::Surface);
+  display_.fillRect(0, y, 4, footerH, color);
+  display_.drawFastHLine(0, y, display_.width(), theme::Divider);
   display_.setTextDatum(textdatum_t::middle_left);
-  display_.setTextColor(TFT_WHITE, color);
+  display_.setTextColor(theme::TextPrimary, theme::Surface);
   display_.setFont(&fonts::Font2);
-  drawTextFit(footerText, 8, y + 4, display_.width() - 16, TFT_WHITE, color);
+  drawTextFit(footerText, 10, y + 4, display_.width() - 18,
+              theme::TextPrimary, theme::Surface);
   display_.setTextDatum(textdatum_t::top_left);
 }
 
