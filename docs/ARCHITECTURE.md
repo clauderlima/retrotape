@@ -1,116 +1,108 @@
-# Arquitetura
+# Architecture
 
-## Objetivo da arquitetura
+## Goals
 
-Separar interface, armazenamento, parser de fita e saida de audio. Isso evita uma solucao monolitica e reduz o risco de travar a reproducao quando a tela for atualizada.
-
-## Fluxo desejado
+RetroTape separates application flow, user interface, storage, networking, tape
+format detection, and audio generation. The main reason for these boundaries is
+timing safety: display, touch, SD card, and web server work must not disturb TAP
+pulse generation.
 
 ```text
-SD card -> parser -> blocos de fita -> pulsos -> AudioOutput
-                              ^
-                              |
-                              UI consulta estado/progresso
+Touch -> UiService -> AppController -> player facade -> format player -> DAC
+                         |                  |
+                         |                  +-> progress and status
+                         +-> storage, Wi-Fi, and web server
 
-Browser web -> FileWebServer -> SD card
+Browser -> FileWebServer -> SD card
 ```
 
-## Camadas
+## Entry point
 
-### `src/main.cpp`
+`src/main.cpp` creates the services and delegates Arduino `setup()` and `loop()`
+to `AppController`.
 
-Ponto de entrada Arduino. Cria os servicos principais e chama `AppController`.
+## Application layer
 
-### `src/app`
+`src/app/AppController` owns the application state machine and coordinates the
+services. Touch actions are grouped by responsibility:
 
-Controla estado global da aplicacao.
+- navigation and screen changes;
+- file browser actions;
+- player actions;
+- TAP compatibility settings;
+- Wi-Fi setup and keyboard input.
 
-Estados planejados:
+`BrowserNavigation` owns the current browser mode, root directory, path, title,
+and extension filters. Returning from a platform root goes directly to Home.
 
-- `Home`
-- `FileBrowser`
-- `Player`
-- `Settings`
-- `Error`
+## User interface
 
-Na fase 3, o controlador tambem recebe acoes de toque da UI, muda de tela, filtra arquivos por modo e guarda o arquivo selecionado para a tela `Player`.
+`src/ui/UiService` draws screens and maps touch coordinates to `UiAction`
+values. It does not perform storage, networking, or playback operations.
 
-### `src/storage`
+- `UiTheme.h` contains shared colors and dimensions.
+- `UiText.h` contains display strings.
+- `UiComponents` provides reusable headers, buttons, fitted text, and time
+  formatting.
 
-Responsavel por SD, diretorios, arquivos e filtros por extensao.
+The visual redesign and cassette logo are intentionally isolated from the
+application and audio code.
 
-Classe inicial:
+## Storage and format detection
 
-- `SdCardService`
+`SdCardService` mounts the SD card, creates standard directories, lists files,
+and filters entries by extension.
 
-### `src/ui`
+`TapeFormatDetector` identifies supported formats from their file names. It is
+the only active class under `src/tape`; unfinished parser placeholders were
+removed in Phase 1 so the source tree represents actual behavior.
 
-Interface com o usuario.
+## Audio
 
-Na fase 3, `UiService` desenha as telas principais e mantem zonas de toque para transformar coordenadas em acoes. A UI nao decide regras de negocio; ela apenas devolve comandos como abrir modo, voltar, selecionar linha e trocar pagina.
+`AudioOutput` is the interface consumed by the application. `DacAudioOutput` is
+a facade that selects one format-specific player:
 
-### `src/audio`
+- `WavPlayer`: PCM WAV playback;
+- `TapPlayer`: ZX Spectrum and TK90X TAP pulse generation;
+- `CasPlayer`: MSX BIOS CAS playback;
+- `DacOutputDriver`: shared DAC setup and sample output.
 
-Abstracao da saida de audio.
+`NoopAudioOutput` remains available as a harmless implementation for tests or
+future host-side development.
 
-Classe inicial:
+### TAP timing contract
 
-- `AudioOutput`: interface
-- `NoopAudioOutput`: implementacao temporaria sem audio real
-- `DacAudioOutput`: WAV/CAS pelo DAC e TAP pelo DAC temporizado no GPIO 26
+The hardware-validated TAP implementation remains isolated in `TapPlayer`.
+It uses ESP32 timer group 0, timer 0, at 10 MHz. The interrupt handler writes
+the internal DAC register and schedules pulse edges from an absolute timer
+deadline to avoid cumulative drift.
 
-Implementacoes planejadas:
+ROM pulse timings are preserved:
 
-- `PwmOutput`
-- `DacOutput`
-- `I2sOutput`
+- pilot: 2168 T-states;
+- sync 1: 667 T-states;
+- sync 2: 735 T-states;
+- bit 0: 855 T-states per half-wave;
+- bit 1: 1710 T-states per half-wave.
 
-Na fase 4, `DacAudioOutput` reproduz WAV PCM 8/16 bits, mono ou stereo pelo loop principal. A UI consulta progresso, mostra tempo decorrido/total e pode interromper a reproducao com `Stop`.
+The validated TK90X baseline is timing 100.0%, UI level 31% (internal amplitude
+40), and normal polarity. `Stop` disables the timer before releasing the file
+and block buffer.
 
-Na fase 5, a mesma saida tambem gera pulsos TAP ZX Spectrum/TK90X. O arquivo TAP e lido bloco a bloco do SD, usando prefixo little-endian de tamanho, pilot tone, sync e pulsos de bits com timings ROM padrao.
+## Networking
 
-Depois dos testes no TK90X, a saida TAP passou a usar o DAC do GPIO 26 comandado pelo timer de hardware do ESP32. O timer trabalha a 10 MHz, com resolucao de 0,1 us, e a ISR apenas troca entre dois niveis do DAC e agenda o proximo pulso. O loop principal le um bloco TAP por vez, atende o touch e carrega o bloco seguinte durante a pausa. As atualizacoes visuais de progresso ficam suspensas durante TAP para evitar jitter. O monitor serial informa tipo e tamanho do bloco, flag, checksum, pilot tone, sync, bits, pausa e atrasos observados no timer.
+`WifiService` scans networks, connects in station mode, saves credentials in
+ESP32 Preferences, and provides a fallback access point.
 
-Essa separacao torna o `Stop` imediato: ele pausa o timer antes de fechar o arquivo e liberar o bloco. Nao existe tarefa de audio esperando por DMA ou escrita no SD.
+`FileWebServer` serves an English upload/listing page on port 80. It accepts
+`.cas` files for `/msx` and `.tap` files for `/tk90x`. The web server is serviced
+only while audio is idle to protect playback timing.
 
-Na fase 6, `DacAudioOutput` tambem reproduz CAS MSX em 1200 baud. O arquivo CAS e lido como bytes BIOS MSX; marcadores `1F A6 DE BA CC 13 7D 74` geram cabecalhos longos ou curtos por heuristica, e os bytes sao emitidos com start bit, 8 bits LSB primeiro e dois stop bits.
+## Concurrency
 
-### `src/network`
+TAP pulse edges are produced by a hardware timer interrupt. File loading, UI,
+touch, Wi-Fi, and web requests run from the main loop. WAV and CAS players are
+non-blocking and advance during regular `update()` calls.
 
-WiFi e servidor web de arquivos.
-
-Classes iniciais:
-
-- `WifiService`: escaneia redes, conecta em modo station, salva credenciais em `Preferences` e cria AP de fallback quando nao ha rede configurada.
-- `FileWebServer`: inicia HTTP na porta 80, mostra pagina de upload/listagem e grava arquivos no SD.
-
-Na fase 7, o servidor aceita `.cas` para `/msx` e `.tap` para `/tk90x`. O WiFi pode ser configurado pela tela `Menu > Config WiFi`, com lista de redes e teclado de senha. O controlador chama o servidor no loop apenas quando o audio nao esta tocando, para reduzir risco de falhas de timing durante reproducao.
-
-### `src/tape`
-
-Formatos, parser e player.
-
-Classes iniciais:
-
-- `TapeFormatDetector`
-- `TapePlayer`
-- `PulseGenerator`
-- `TapParser`
-- `CasParser`
-- `TzxParser`
-- `TsxParser`
-
-Os parsers formais ainda sao stubs, mas o player de audio ja possui suporte inicial a TAP padrao e CAS MSX. TZX, TSX e TSZ ficam para fases posteriores.
-
-## Decisao importante
-
-A UI nao deve gerar audio diretamente. A UI pede a acao para o controlador, o controlador muda o estado, e o player/audio executa a reproducao.
-
-## Concorrencia planejada
-
-O TAP usa timer de hardware e estado nao bloqueante. Para os demais formatos, a arquitetura ainda pode evoluir para:
-
-- task de UI;
-- task de leitura/parser;
-- task, timer ou periferico dedicado para audio;
-- fila de pulsos ou samples entre parser e saida.
+Future TZX/TSX support should use a format-specific player or parser feeding
+the same output boundary rather than adding format logic back into the facade.

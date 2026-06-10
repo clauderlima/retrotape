@@ -5,6 +5,7 @@
 #include "hardware/CydDisplay.h"
 #include "network/WifiService.h"
 #include "storage/SdCardService.h"
+#include "ui/UiComponents.h"
 
 namespace ui {
 
@@ -104,6 +105,7 @@ class UiService {
   static constexpr size_t MaxTouchZones = 24;
 
   hardware::CydDisplay display_;
+  UiComponents components_{display_};
   String footerSuffix_;
   TouchZone touchZones_[MaxTouchZones];
   size_t touchZoneCount_ = 0;

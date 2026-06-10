@@ -56,20 +56,20 @@ void FileWebServer::handleRoot() {
   sendPageHeader("RetroTape");
 
   if (server_.hasArg("ok")) {
-    server_.sendContent("<p class=\"ok\">Upload concluido.</p>");
+    server_.sendContent("<p class=\"ok\">Upload completed.</p>");
   } else if (server_.hasArg("error")) {
-    server_.sendContent("<p class=\"error\">Upload nao concluido. Confira plataforma, extensao e cartao SD.</p>");
+    server_.sendContent("<p class=\"error\">Upload failed. Check the platform, file extension, and SD card.</p>");
   }
 
-  server_.sendContent("<section><h2>Enviar arquivo</h2>");
+  server_.sendContent("<section><h2>Upload files</h2>");
   if (!storage_.isMounted()) {
-    server_.sendContent("<p class=\"error\">Cartao SD nao montado.</p>");
+    server_.sendContent("<p class=\"error\">SD card is not mounted.</p>");
   } else {
     sendUploadForm();
   }
   server_.sendContent("</section>");
 
-  server_.sendContent("<section><h2>Arquivos no cartao</h2><div class=\"grid\">");
+  server_.sendContent("<section><h2>Files on the SD card</h2><div class=\"grid\">");
   sendFileList("MSX", "/msx", ".cas");
   sendFileList("TK90X / ZX", "/tk90x", ".tap");
   server_.sendContent("</div></section>");
@@ -186,22 +186,22 @@ void FileWebServer::sendPageHeader(const char* title) {
   server_.sendContent(".grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px}.panel{background:#101820;border:1px solid #2c3a46;border-radius:8px;padding:12px}");
   server_.sendContent("ul{list-style:none;margin:0;padding:0}li{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid #26323d}");
   server_.sendContent("small{color:#9fb1bf}.ok{color:#7ee6a6}.error{color:#ff9a9a}footer{color:#9fb1bf;padding:12px 20px;text-align:center}");
-  server_.sendContent("</style></head><body><header><h1>RetroTape</h1><small>Servidor de arquivos - ");
+  server_.sendContent("</style></head><body><header><h1>RetroTape</h1><small>File server - ");
   server_.sendContent(wifi_.isAccessPointMode() ? "AP " : "WiFi ");
   server_.sendContent(wifi_.ipAddressText());
   server_.sendContent("</small></header><main>");
 }
 
 void FileWebServer::sendPageFooter() {
-  server_.sendContent("</main><footer>MSX aceita .cas; TK90X / ZX aceita .tap.</footer></body></html>");
+  server_.sendContent("</main><footer>MSX accepts .cas files; TK90X / ZX accepts .tap files.</footer></body></html>");
 }
 
 void FileWebServer::sendUploadForm() {
   server_.sendContent("<form method=\"post\" action=\"/upload\" enctype=\"multipart/form-data\">");
-  server_.sendContent("<label for=\"platform\">Computador</label><select id=\"platform\" name=\"platform\">");
+  server_.sendContent("<label for=\"platform\">Computer</label><select id=\"platform\" name=\"platform\">");
   server_.sendContent("<option value=\"msx\">MSX (.cas)</option><option value=\"tk90x\">TK90X / ZX (.tap)</option>");
-  server_.sendContent("</select><label for=\"file\">Arquivo</label><input id=\"file\" name=\"file\" type=\"file\" multiple accept=\".cas,.tap\">");
-  server_.sendContent("<button type=\"submit\">Enviar para o cartao</button></form>");
+  server_.sendContent("</select><label for=\"file\">Files</label><input id=\"file\" name=\"file\" type=\"file\" multiple accept=\".cas,.tap\">");
+  server_.sendContent("<button type=\"submit\">Upload to SD card</button></form>");
 }
 
 void FileWebServer::sendFileList(const char* title, const char* directory, const char* extension) {
@@ -210,13 +210,13 @@ void FileWebServer::sendFileList(const char* title, const char* directory, const
   server_.sendContent("</h3>");
 
   if (!storage_.isMounted()) {
-    server_.sendContent("<small>SD nao montado.</small></div>");
+    server_.sendContent("<small>SD card is not mounted.</small></div>");
     return;
   }
 
   File dir = SD.open(directory);
   if (!dir || !dir.isDirectory()) {
-    server_.sendContent("<small>Pasta vazia.</small></div>");
+    server_.sendContent("<small>Empty folder.</small></div>");
     return;
   }
 
@@ -244,7 +244,7 @@ void FileWebServer::sendFileList(const char* title, const char* directory, const
   server_.sendContent("</ul>");
 
   if (!hasFiles) {
-    server_.sendContent("<small>Nenhum arquivo.</small>");
+    server_.sendContent("<small>No files.</small>");
   }
   dir.close();
   server_.sendContent("</div>");

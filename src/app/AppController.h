@@ -2,6 +2,7 @@
 
 #include <Arduino.h>
 
+#include "app/BrowserNavigation.h"
 #include "audio/AudioOutput.h"
 #include "network/FileWebServer.h"
 #include "network/WifiService.h"
@@ -20,12 +21,6 @@ enum class AppState {
   WifiList,
   WifiPassword,
   Error,
-};
-
-enum class BrowserMode {
-  Tk90x,
-  Msx,
-  Wav,
 };
 
 class AppController {
@@ -47,6 +42,11 @@ class AppController {
 
   void setState(AppState nextState);
   void handleAction(ui::UiAction action);
+  bool handleNavigationAction(ui::UiAction action);
+  bool handleTapSettingsAction(ui::UiAction action);
+  bool handleBrowserAction(ui::UiAction action);
+  bool handlePlayerAction(ui::UiAction action);
+  bool handleWifiAction(ui::UiAction action);
   void serviceAudio();
   void openBrowser(BrowserMode mode);
   void refreshBrowser();
@@ -65,9 +65,6 @@ class AppController {
   void goBack();
   void goParentDirectory();
   void setPlayerFile(const storage::FileEntry& entry);
-  void getModeExtensions(const char* const*& extensions, size_t& extensionCount) const;
-  const char* defaultPathForMode(BrowserMode mode) const;
-  const char* browserTitle() const;
   const char* selectedFormatName() const;
   void updateWebFooter(bool force = false);
   void printHeartbeat();
@@ -78,12 +75,11 @@ class AppController {
   network::WifiService& wifi_;
   network::FileWebServer& webServer_;
   AppState state_ = AppState::Home;
-  BrowserMode browserMode_ = BrowserMode::Tk90x;
+  BrowserNavigation browserNavigation_;
   bool storageReady_ = false;
   bool audioReady_ = false;
   bool wifiReady_ = false;
   bool webReady_ = false;
-  String currentPath_ = "/";
   String selectedName_;
   String selectedPath_;
   tape::TapeFormat selectedFormat_ = tape::TapeFormat::Unknown;

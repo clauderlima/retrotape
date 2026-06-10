@@ -1,5 +1,7 @@
 #include "app/AppController.h"
 
+#include "ui/UiText.h"
+
 namespace app {
 
 namespace {
@@ -70,13 +72,14 @@ void AppController::setState(AppState nextState) {
 
   switch (state_) {
     case AppState::Home:
-      ui_.showHome(storageReady_ ? "Toque em uma opcao" : "SD not mounted");
+      ui_.showHome(storageReady_ ? ui::text::ChooseSystem : ui::text::SdNotMounted);
       break;
     case AppState::FileBrowser:
       showBrowser();
       break;
     case AppState::Player:
-      showPlayerScreen(audio_.isPlaying() ? "Tocando..." : "Pronto", audio_.isPlaying());
+      showPlayerScreen(audio_.isPlaying() ? ui::text::Playing : ui::text::Ready,
+                       audio_.isPlaying());
       break;
     case AppState::Settings:
       ui_.showSettings("TPM408-2.8 ILI9342", storageReady_, wifi_.statusText().c_str());
@@ -85,13 +88,13 @@ void AppController::setState(AppState nextState) {
       showTapSettingsScreen();
       break;
     case AppState::WifiList:
-      showWifiListScreen("Toque em uma rede");
+      showWifiListScreen(ui::text::SelectNetwork);
       break;
     case AppState::WifiPassword:
-      showWifiPasswordScreen("Digite a senha");
+      showWifiPasswordScreen(ui::text::EnterPassword);
       break;
     case AppState::Error:
-      ui_.showError("Application error");
+      ui_.showError(ui::text::ApplicationError);
       break;
   }
 }
@@ -101,141 +104,175 @@ void AppController::handleAction(ui::UiAction action) {
     return;
   }
 
+  handleNavigationAction(action) || handleTapSettingsAction(action) ||
+      handleBrowserAction(action) || handlePlayerAction(action) ||
+      handleWifiAction(action);
+}
+
+bool AppController::handleNavigationAction(ui::UiAction action) {
   switch (action) {
     case ui::UiAction::OpenTk90x:
       openBrowser(BrowserMode::Tk90x);
-      break;
+      return true;
     case ui::UiAction::OpenMsx:
       openBrowser(BrowserMode::Msx);
-      break;
+      return true;
     case ui::UiAction::OpenWav:
       openBrowser(BrowserMode::Wav);
-      break;
+      return true;
     case ui::UiAction::OpenMenu:
       setState(AppState::Settings);
-      break;
+      return true;
     case ui::UiAction::OpenWifiSettings:
-      scanWifiNetworks("Redes encontradas");
-      break;
+      scanWifiNetworks(ui::text::NetworksFound);
+      return true;
     case ui::UiAction::OpenTapSettings:
       setState(AppState::TapSettings);
-      break;
+      return true;
+    case ui::UiAction::Back:
+      goBack();
+      return true;
+    default:
+      return false;
+  }
+}
+
+bool AppController::handleTapSettingsAction(ui::UiAction action) {
+  switch (action) {
     case ui::UiAction::TapTimingDown:
       tapTimingPermille_ = tapTimingPermille_ > 950 ? tapTimingPermille_ - 5 : 950;
       audio_.setTapTimingPermille(tapTimingPermille_);
       showTapSettingsScreen();
-      break;
+      return true;
     case ui::UiAction::TapTimingUp:
       tapTimingPermille_ = tapTimingPermille_ < 1050 ? tapTimingPermille_ + 5 : 1050;
       audio_.setTapTimingPermille(tapTimingPermille_);
       showTapSettingsScreen();
-      break;
+      return true;
     case ui::UiAction::TapLevelDown:
       tapAmplitude_ = tapAmplitude_ > 16 ? tapAmplitude_ - 8 : 8;
       audio_.setTapAmplitude(tapAmplitude_);
       showTapSettingsScreen();
-      break;
+      return true;
     case ui::UiAction::TapLevelUp:
       tapAmplitude_ = tapAmplitude_ < 112 ? tapAmplitude_ + 8 : 120;
       audio_.setTapAmplitude(tapAmplitude_);
       showTapSettingsScreen();
-      break;
+      return true;
     case ui::UiAction::TapInvert:
       tapInverted_ = !tapInverted_;
       audio_.setTapInverted(tapInverted_);
       showTapSettingsScreen();
-      break;
-    case ui::UiAction::Back:
-      goBack();
-      break;
+      return true;
+    default:
+      return false;
+  }
+}
+
+bool AppController::handleBrowserAction(ui::UiAction action) {
+  switch (action) {
     case ui::UiAction::BrowserPrevious:
       browserOffset_ = browserOffset_ > BrowserRows ? browserOffset_ - BrowserRows : 0;
       showBrowser();
-      break;
+      return true;
     case ui::UiAction::BrowserNext:
       if (browserOffset_ + BrowserRows < browserEntryCount_) {
         browserOffset_ += BrowserRows;
       }
       showBrowser();
-      break;
+      return true;
     case ui::UiAction::BrowserSelect0:
       selectBrowserRow(0);
-      break;
+      return true;
     case ui::UiAction::BrowserSelect1:
       selectBrowserRow(1);
-      break;
+      return true;
     case ui::UiAction::BrowserSelect2:
       selectBrowserRow(2);
-      break;
+      return true;
     case ui::UiAction::BrowserSelect3:
       selectBrowserRow(3);
-      break;
+      return true;
+    default:
+      return false;
+  }
+}
+
+bool AppController::handlePlayerAction(ui::UiAction action) {
+  switch (action) {
     case ui::UiAction::PlayerPlay:
       if (selectedFormat_ == tape::TapeFormat::Wav) {
         if (audio_.playWavFile(selectedPath_.c_str())) {
           playerWasPlaying_ = true;
           lastPlayerProgressMs_ = 0;
-          showPlayerScreen("Tocando WAV...", true);
+          showPlayerScreen("Playing WAV...", true);
         } else {
-          showPlayerScreen("Erro no WAV", false);
+          showPlayerScreen("WAV error", false);
         }
-        break;
+        return true;
       }
 
       if (selectedFormat_ == tape::TapeFormat::Tap) {
         if (audio_.playTapFile(selectedPath_.c_str())) {
           playerWasPlaying_ = true;
           lastPlayerProgressMs_ = 0;
-          showPlayerScreen("Tocando TAP...", true);
+          showPlayerScreen("Playing TAP...", true);
         } else {
-          showPlayerScreen("Erro no TAP", false);
+          showPlayerScreen("TAP error", false);
         }
-        break;
+        return true;
       }
 
       if (selectedFormat_ == tape::TapeFormat::Cas) {
         if (audio_.playCasFile(selectedPath_.c_str())) {
           playerWasPlaying_ = true;
           lastPlayerProgressMs_ = 0;
-          showPlayerScreen("Tocando CAS...", true);
+          showPlayerScreen("Playing CAS...", true);
         } else {
-          showPlayerScreen("Erro no CAS", false);
+          showPlayerScreen("CAS error", false);
         }
-        break;
+        return true;
       }
 
-      showPlayerScreen("Formato pendente", false);
-      break;
+      showPlayerScreen("Unsupported format", false);
+      return true;
     case ui::UiAction::PlayerStop:
       audio_.stop();
       playerWasPlaying_ = false;
-      showPlayerScreen("Parado", false);
-      break;
+      showPlayerScreen(ui::text::Stopped, false);
+      return true;
+    default:
+      return false;
+  }
+}
+
+bool AppController::handleWifiAction(ui::UiAction action) {
+  switch (action) {
     case ui::UiAction::WifiRescan:
-      scanWifiNetworks("Redes atualizadas");
-      break;
+      scanWifiNetworks(ui::text::NetworksUpdated);
+      return true;
     case ui::UiAction::WifiPrevious:
       wifiOffset_ = wifiOffset_ > WifiRows ? wifiOffset_ - WifiRows : 0;
-      showWifiListScreen("Toque em uma rede");
-      break;
+      showWifiListScreen(ui::text::SelectNetwork);
+      return true;
     case ui::UiAction::WifiNext:
       if (wifiOffset_ + WifiRows < wifiNetworkCount_) {
         wifiOffset_ += WifiRows;
       }
-      showWifiListScreen("Toque em uma rede");
-      break;
+      showWifiListScreen(ui::text::SelectNetwork);
+      return true;
     case ui::UiAction::WifiSelect0:
       selectWifiRow(0);
-      break;
+      return true;
     case ui::UiAction::WifiSelect1:
       selectWifiRow(1);
-      break;
+      return true;
     case ui::UiAction::WifiSelect2:
       selectWifiRow(2);
-      break;
+      return true;
     case ui::UiAction::WifiSelect3:
       selectWifiRow(3);
-      break;
+      return true;
     case ui::UiAction::WifiKey0:
     case ui::UiAction::WifiKey1:
     case ui::UiAction::WifiKey2:
@@ -255,23 +292,22 @@ void AppController::handleAction(ui::UiAction action) {
     case ui::UiAction::WifiKey16:
     case ui::UiAction::WifiKey17:
       appendWifiKey(action);
-      break;
+      return true;
     case ui::UiAction::WifiKeyboardNext:
       wifiKeyPage_ = (wifiKeyPage_ + 1) % WifiKeyPageCount;
-      showWifiPasswordScreen("Digite a senha");
-      break;
+      showWifiPasswordScreen(ui::text::EnterPassword);
+      return true;
     case ui::UiAction::WifiBackspace:
       if (wifiPassword_.length() > 0) {
         wifiPassword_.remove(wifiPassword_.length() - 1);
       }
-      showWifiPasswordScreen("Digite a senha");
-      break;
+      showWifiPasswordScreen(ui::text::EnterPassword);
+      return true;
     case ui::UiAction::WifiConnect:
       connectSelectedWifi();
-      break;
-    case ui::UiAction::None:
+      return true;
     default:
-      break;
+      return false;
   }
 }
 
@@ -295,18 +331,17 @@ void AppController::serviceAudio() {
 
   if (playerWasPlaying_ && !playing) {
     playerWasPlaying_ = false;
-    showPlayerScreen("Finalizado", false);
+    showPlayerScreen(ui::text::Finished, false);
   }
 }
 
 void AppController::openBrowser(BrowserMode mode) {
   if (!storageReady_) {
-    ui_.showHome("SD not mounted");
+    ui_.showHome(ui::text::SdNotMounted);
     return;
   }
 
-  browserMode_ = mode;
-  currentPath_ = defaultPathForMode(mode);
+  browserNavigation_.open(mode);
   browserOffset_ = 0;
   refreshBrowser();
   setState(AppState::FileBrowser);
@@ -322,16 +357,18 @@ void AppController::refreshBrowser() {
 
   const char* const* extensions = nullptr;
   size_t extensionCount = 0;
-  getModeExtensions(extensions, extensionCount);
+  browserNavigation_.extensions(extensions, extensionCount);
   browserEntryCount_ =
-      storage_.listDirectory(currentPath_.c_str(), browserEntries_, MaxBrowserEntries, extensions, extensionCount);
+      storage_.listDirectory(browserNavigation_.path().c_str(), browserEntries_,
+                             MaxBrowserEntries, extensions, extensionCount);
 }
 
 void AppController::showBrowser() {
   const bool hasPrevious = browserOffset_ > 0;
   const bool hasNext = browserOffset_ + BrowserRows < browserEntryCount_;
-  ui_.showFileBrowser(browserTitle(), currentPath_.c_str(), browserEntries_, browserEntryCount_, browserOffset_,
-                      browserEntryCount_, hasPrevious, hasNext);
+  ui_.showFileBrowser(browserNavigation_.title(), browserNavigation_.path().c_str(),
+                      browserEntries_, browserEntryCount_, browserOffset_, browserEntryCount_,
+                      hasPrevious, hasNext);
 }
 
 void AppController::showPlayerScreen(const char* status, bool playing) {
@@ -344,7 +381,7 @@ void AppController::showTapSettingsScreen() {
 }
 
 void AppController::scanWifiNetworks(const char* status) {
-  ui_.showStatus("Buscando redes WiFi...");
+  ui_.showStatus(ui::text::ScanNetworks);
   wifiNetworkCount_ = wifi_.scanNetworks(wifiNetworks_, MaxWifiNetworks);
   wifiOffset_ = 0;
   state_ = AppState::WifiList;
@@ -371,12 +408,12 @@ void AppController::selectWifiRow(size_t row) {
   wifiPassword_ = "";
   wifiKeyPage_ = 0;
   state_ = AppState::WifiPassword;
-  showWifiPasswordScreen("Digite a senha");
+  showWifiPasswordScreen(ui::text::EnterPassword);
 }
 
 void AppController::appendWifiKey(ui::UiAction action) {
   if (wifiPassword_.length() >= 63) {
-    showWifiPasswordScreen("Senha muito longa");
+    showWifiPasswordScreen(ui::text::PasswordTooLong);
     return;
   }
 
@@ -385,11 +422,11 @@ void AppController::appendWifiKey(ui::UiAction action) {
   if (index < WifiKeysPerPage && page[index] != '\0') {
     wifiPassword_ += page[index];
   }
-  showWifiPasswordScreen("Digite a senha");
+  showWifiPasswordScreen(ui::text::EnterPassword);
 }
 
 void AppController::connectSelectedWifi() {
-  showWifiPasswordScreen("Conectando...");
+  showWifiPasswordScreen(ui::text::Connecting);
   const bool connected = wifi_.connectAndSave(selectedWifiSsid_, wifiPassword_);
   updateWebFooter(true);
   if (!webReady_) {
@@ -397,7 +434,7 @@ void AppController::connectSelectedWifi() {
   }
   state_ = AppState::Settings;
   ui_.showSettings("TPM408-2.8 ILI9342", storageReady_, wifi_.statusText().c_str());
-  ui_.showStatus(connected ? "WiFi conectado" : "Falha no WiFi");
+  ui_.showStatus(connected ? ui::text::WifiConnected : ui::text::WifiFailed);
 }
 
 uint8_t AppController::wifiKeyIndex(ui::UiAction action) const {
@@ -421,7 +458,7 @@ void AppController::selectBrowserRow(size_t row) {
 
   const storage::FileEntry& entry = browserEntries_[index];
   if (entry.isDirectory) {
-    currentPath_ = entry.path;
+    browserNavigation_.enter(entry.path);
     refreshBrowser();
     setState(AppState::FileBrowser);
     return;
@@ -463,21 +500,9 @@ void AppController::goBack() {
 }
 
 void AppController::goParentDirectory() {
-  const String browserRoot = defaultPathForMode(browserMode_);
-  if (currentPath_ == browserRoot || currentPath_ == "/") {
+  if (!browserNavigation_.goToParent()) {
     setState(AppState::Home);
     return;
-  }
-
-  const int slash = currentPath_.lastIndexOf('/');
-  if (slash <= 0) {
-    currentPath_ = "/";
-  } else {
-    currentPath_ = currentPath_.substring(0, slash);
-  }
-
-  if (!currentPath_.startsWith(browserRoot)) {
-    currentPath_ = browserRoot;
   }
 
   refreshBrowser();
@@ -491,53 +516,6 @@ void AppController::setPlayerFile(const storage::FileEntry& entry) {
 
   Serial.print("Selected file: ");
   Serial.println(selectedPath_);
-}
-
-void AppController::getModeExtensions(const char* const*& extensions, size_t& extensionCount) const {
-  static const char* const tk90xExtensions[] = {".tap"};
-  static const char* const msxExtensions[] = {".cas"};
-  static const char* const wavExtensions[] = {".wav"};
-
-  switch (browserMode_) {
-    case BrowserMode::Tk90x:
-      extensions = tk90xExtensions;
-      extensionCount = sizeof(tk90xExtensions) / sizeof(tk90xExtensions[0]);
-      break;
-    case BrowserMode::Msx:
-      extensions = msxExtensions;
-      extensionCount = sizeof(msxExtensions) / sizeof(msxExtensions[0]);
-      break;
-    case BrowserMode::Wav:
-      extensions = wavExtensions;
-      extensionCount = sizeof(wavExtensions) / sizeof(wavExtensions[0]);
-      break;
-  }
-}
-
-const char* AppController::defaultPathForMode(BrowserMode mode) const {
-  switch (mode) {
-    case BrowserMode::Tk90x:
-      return "/tk90x";
-    case BrowserMode::Msx:
-      return "/msx";
-    case BrowserMode::Wav:
-      return "/";
-  }
-
-  return "/";
-}
-
-const char* AppController::browserTitle() const {
-  switch (browserMode_) {
-    case BrowserMode::Tk90x:
-      return "TK90X / ZX";
-    case BrowserMode::Msx:
-      return "MSX";
-    case BrowserMode::Wav:
-      return "WAV";
-  }
-
-  return "Arquivos";
 }
 
 const char* AppController::selectedFormatName() const {
