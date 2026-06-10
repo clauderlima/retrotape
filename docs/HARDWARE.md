@@ -1,16 +1,18 @@
 # Hardware
 
-## Placa alvo
+## Target board
 
-ESP32-2432S028 / ESP32-2432S028R, conhecida como Cheap Yellow Display ou CYD.
+ESP32-2432S028 / ESP32-2432S028R, commonly called the Cheap Yellow Display
+(CYD). Board revisions vary, so pin assignments must be confirmed against the
+actual unit before hardware modifications are made.
 
-## Pinagem inicial assumida
+## Validated display
 
-Esta pinagem e comum nas placas CYD 2.8" resistivas, mas deve ser confirmada na placa real antes de ligarmos audio e perifericos definitivos.
+The tested module is marked **TPM408-2.8**. A generic ILI9341 configuration
+produced mirrored and overlapping output. The validated firmware uses
+LovyanGFX `Panel_ILI9342` with a 320 x 240 memory and panel size.
 
-### Display TFT TPM408-2.8
-
-| Sinal | GPIO |
+| TFT signal | GPIO |
 | --- | --- |
 | MISO | 12 |
 | MOSI | 13 |
@@ -20,11 +22,9 @@ Esta pinagem e comum nas placas CYD 2.8" resistivas, mas deve ser confirmada na 
 | RST | -1 |
 | Backlight | 21 |
 
-Na placa real testada, o vidro esta marcado como TPM408-2.8. Essa revisao exibiu imagem espelhada e area embaralhada com a configuracao ILI9341 generica. O firmware usa `Panel_ILI9342` da LovyanGFX, com memoria/painel em 320x240.
+## XPT2046 touch
 
-### Touch XPT2046
-
-| Sinal | GPIO |
+| Touch signal | GPIO |
 | --- | --- |
 | IRQ | 36 |
 | MOSI | 32 |
@@ -32,68 +32,111 @@ Na placa real testada, o vidro esta marcado como TPM408-2.8. Essa revisao exibiu
 | SCLK | 25 |
 | CS | 33 |
 
-O touch esta configurado em SPI por software no firmware atual. Essa escolha evita conflito com o microSD, que usa o barramento VSPI de hardware.
+Touch uses software SPI to avoid contention with the microSD hardware bus. On
+the tested TPM408-2.8 assembly, the touch sensor is physically oriented in
+portrait relative to the landscape display. `offset_rotation = 3` aligns touch
+coordinates with the visible controls.
 
-Na placa TPM408-2.8 testada, o touch fica fisicamente em orientacao retrato em relacao ao display 320x240. O firmware usa `offset_rotation = 3` no XPT2046 para alinhar o toque com a tela em paisagem.
+## microSD
 
-### microSD
-
-| Sinal | GPIO |
+| SD signal | GPIO |
 | --- | --- |
 | MISO | 19 |
 | MOSI | 23 |
 | SCLK | 18 |
 | CS | 5 |
 
-### Audio inicial
+Use a FAT32 card. RetroTape creates `/tk90x`, `/msx`, and `/wav`.
 
-| Funcao | GPIO |
+## Onboard audio path
+
+| Function | GPIO |
 | --- | --- |
-| DAC / audio inicial | 26 |
+| ESP32 DAC2 | 26 |
 
-GPIO 26 e o DAC2 do ESP32 e alimenta a entrada do amplificador de audio da CYD. O firmware usa o DAC para WAV PCM, CAS MSX e TAP ZX/TK90X. No TAP, um timer de hardware de 10 MHz altera diretamente o valor do DAC em cada borda, com resolucao de 0,1 us e amplitude configuravel. Isso mantem a interface livre para o botao Stop sem depender de I2S/DMA.
+GPIO 26 feeds the onboard SC8002B amplifier input. RetroTape uses the DAC for
+WAV, CAS, TAP, and audio diagnostics.
 
-O conector `SPEAK/P4` nao e o GPIO 26 direto: ele e a saida em ponte do amplificador SC8002B. Os dois terminais do P4 sao saidas ativas; nenhum deles deve ser curto-circuitado ao GND da placa.
+TAP playback is special: ESP32 timer group 0, timer 0 runs at 10 MHz and the
+interrupt writes DAC levels directly. This gives 0.1 us resolution and keeps
+Stop responsive without depending on I2S or DMA.
 
-Ligacao de teste usando o conector P4:
+## Speaker connector warning
 
-```text
-um terminal P4 -> capacitor 1uF a 10uF -> resistor 4.7k a 10k -> TIP / EAR
-GND da placa ----------------------------------------------------> sleeve / GND
+`SPEAK/P4` is the bridged output of the SC8002B amplifier. Both P4 terminals
+are active outputs. Neither terminal is board ground, and neither should be
+shorted to ground.
 
-outro terminal P4: deixar desconectado
-```
-
-Se usar capacitor eletrolitico, deixe o lado positivo voltado para o P4. Nao use o segundo terminal do P4 como terra. O resistor de 1k usado nos primeiros testes pode funcionar, mas 4.7k a 10k reduz a carga sobre o amplificador e e um ponto inicial mais seguro. Um potenciometro de 10k pode ser usado como atenuador.
-
-Uma saida tomada antes do amplificador, diretamente no GPIO 26, seria eletricamente mais previsivel, mas esse pino nao esta disponivel nos conectores externos da CYD e exigiria modificacao fisica na placa.
-
-Para TAP ZX/TK90X, use a mesma ligacao. O computador deve estar em `LOAD ""` antes de tocar o arquivo. O sinal TAP tem duty cycle de 50% e timings ROM padrao: piloto 2168 T-states, sincronismos 667/735 e bits 855/1710 T-states por semiciclo.
-
-Para CAS MSX, use a mesma ligacao na entrada de cassette do MSX. O firmware gera CAS em 1200 baud nesta fase. O comando de carga depende do tipo de arquivo salvo na fita:
+The single-ended development connection was:
 
 ```text
-CLOAD        ; BASIC
-BLOAD"CAS:",R ; binario/maquina, quando aplicavel
+one P4 output -> 1 uF to 10 uF coupling capacitor
+              -> 4.7 kOhm to 10 kOhm series resistor
+              -> computer TIP / EAR
+
+CYD board GND ---------------------------------> computer sleeve / signal GND
+other P4 output: leave disconnected
 ```
 
-## Saida de audio recomendada
+For an electrolytic capacitor, place its positive side toward P4. A 10 kOhm
+potentiometer can be used as an attenuator. Begin at a low level and increase
+gradually while observing the waveform when possible.
 
-Para carregar programas em TK90X/ZX Spectrum/MSX, a saida onboard pode ser suficiente para testes, mas pode ter ruido, distorcao ou nivel inadequado.
+A pre-amplifier connection taken directly from GPIO 26 would be electrically
+more predictable, but GPIO 26 is not exposed on the normal CYD headers and
+requires a physical board modification.
 
-O caminho recomendado para estabilidade sera um DAC I2S externo, como PCM5102A, depois que o firmware base estiver funcionando.
+## TK90X / ZX Spectrum
 
-## Cuidados
+Put the computer in `LOAD ""` before starting a TAP file. Standard ROM timings
+are:
 
-- Comecar com volume baixo e aumentar aos poucos.
-- Evitar ligar saida amplificada diretamente em entradas sensiveis sem atenuacao.
-- Validar a forma de onda em osciloscopio quando possivel.
-- A entrada EAR/CASSETTE pode exigir ajuste de polaridade e amplitude.
-- Algumas revisoes da CYD podem mudar pinos ou comportamento do backlight.
+| Signal | T-states | RetroTape baseline |
+| --- | ---: | ---: |
+| Pilot half-pulse | 2168 | 619.4 us |
+| Sync 1 | 667 | 190.6 us |
+| Sync 2 | 735 | 210.0 us |
+| Bit 0 half-pulse | 855 | 244.3 us |
+| Bit 1 half-pulse | 1710 | 488.6 us |
 
-## Referencias de pinagem
+The validated settings are timing 100.0%, TAP level 31%, and normal polarity.
 
-- CYD community pin map: https://github.com/witnessmenow/ESP32-Cheap-Yellow-Display/blob/main/PINS.md
-- CYD original schematic archive: https://github.com/witnessmenow/ESP32-Cheap-Yellow-Display/tree/main/OriginalDocumentation/5-Schematic
-- ESP3D Sunton ESP32-2432S028R: https://esp3d.io/esp3d-tft/version_1x/hardware/esp32/sunton-28-2432/
-- ESP-IDF timer driver: https://docs.espressif.com/projects/esp-idf/en/v4.2/esp32/api-reference/peripherals/timer.html
+### Tested TK90X modification
+
+The tested TK90X only loaded successfully after **C5 on the TK90X mainboard**
+was changed to **100 uF**. This capacitor is inside the computer; it is not the
+external RetroTape coupling capacitor. Other revisions may behave differently.
+Check the original circuit and capacitor polarity before repeating this change.
+
+## MSX
+
+Use the same attenuated connection with the MSX cassette input. RetroTape
+currently generates BIOS CAS data at 1200 baud. Commands depend on the recorded
+file:
+
+```text
+CLOAD
+BLOAD"CAS:",R
+```
+
+## External I2S DAC
+
+A future PCM5102A or similar I2S output can provide a cleaner, unamplified line
+signal. It remains a planned option; the current validated board uses DAC2 and
+the onboard amplifier.
+
+## Safety and validation
+
+- Start with a low output level.
+- Never use the second bridged speaker output as ground.
+- Do not connect an amplified output to a sensitive input without attenuation.
+- Confirm AC coupling and near-zero average voltage at the computer input.
+- Validate amplitude, frequency, and distortion with an oscilloscope.
+- Expect pin and backlight differences across CYD revisions.
+
+## Hardware references
+
+- [CYD community pin map](https://github.com/witnessmenow/ESP32-Cheap-Yellow-Display/blob/main/PINS.md)
+- [Archived CYD schematics](https://github.com/witnessmenow/ESP32-Cheap-Yellow-Display/tree/main/OriginalDocumentation/5-Schematic)
+- [ESP3D Sunton ESP32-2432S028R notes](https://esp3d.io/esp3d-tft/version_1x/hardware/esp32/sunton-28-2432/)
+- [ESP-IDF timer driver](https://docs.espressif.com/projects/esp-idf/en/v4.2/esp32/api-reference/peripherals/timer.html)

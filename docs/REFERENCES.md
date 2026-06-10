@@ -1,77 +1,77 @@
-# Referencias tecnicas
+# Technical References
 
-Este documento registra as fontes analisadas e a decisao de uso para o projeto RetroTape-ESP32-CYD.
+This document records the sources studied for RetroTape and the rules governing
+their use.
 
-## Politica de uso de codigo
+## Source-use policy
 
-- Codigo de projetos sem licenca clara nao deve ser copiado.
-- Codigo GPL-3.0 nao deve ser copiado sem aceitar que o firmware tambem seja GPL-3.0.
-- Nesta fase, todas as referencias sao usadas apenas conceitualmente.
-- Timings e formatos devem ser reimplementados a partir de especificacoes publicas.
+- Code without a clear project license must not be copied.
+- RetroTape is distributed under GPL-3.0. Even so, third-party GPL code is not
+  copied without explicit provenance, compatibility review, and attribution.
+- Third-party projects are currently conceptual references only.
+- Format parsing and timings are reimplemented from public specifications.
 
-## Repositorios estudados
+## Studied repositories
 
 ### MaxDuino
 
-- URL: https://github.com/rcmolina/MaxDuino
-- Commit analisado: `12c2178`
-- Descricao: firmware unificado para dispositivos TZXDuino/MaxDuino/CASDuino.
-- Formatos citados pelo projeto: TZX, TAP, AY, UEF, TSZ, CAS, CDT, MZF, CAQ e outros.
-- Licenca: nao foi encontrada uma licenca principal clara no repositorio.
-- Uso permitido neste projeto: referencia conceitual.
-- Nao copiar: implementacoes de parser, ISR, buffer, menu ou configuracao sem nova verificacao de licenca.
+- Repository: [rcmolina/MaxDuino](https://github.com/rcmolina/MaxDuino)
+- Reviewed commit: `12c2178`
+- License finding: no clear repository-wide license was found.
+- Use in RetroTape: conceptual reference only.
 
-Arquivos analisados:
+Reviewed files:
 
-- `MaxDuino/MaxDuino.ino`
-- `MaxDuino/MaxProcessing.cpp`
-- `MaxDuino/casProcessing.cpp`
-- `MaxDuino/isr.cpp`
-- `MaxDuino/buffer.cpp`
-- `MaxDuino/buffer.h`
-- `MaxDuino/TimerCounter.cpp`
-- `MaxDuino/file_utils.cpp`
-- `MaxDuino/CheckForExt.cpp`
-- `MaxDuino/constants.h`
-- `MaxDuino/processing_state.h`
+- `MaxDuino.ino`
+- `MaxProcessing.cpp`
+- `casProcessing.cpp`
+- `isr.cpp`
+- `buffer.cpp` and `buffer.h`
+- `TimerCounter.cpp`
+- `file_utils.cpp`
+- `CheckForExt.cpp`
+- `constants.h`
+- `processing_state.h`
 - `README.md`
 - `FILE_TYPES.md`
 
+Useful concepts include pulse timing tables, parser-to-buffer flow, pause and
+polarity state, extension detection, and keeping ISR work small. Parser,
+buffer, ISR, menu, and configuration code must not be copied without a new
+license review.
+
 ### TZXDuino dev-hp
 
-- URL: https://gitlab.com/dev-hp/TZXDuino
-- Commit analisado: `f6aebbc`
-- Descricao: variante/refatoracao de TZXDuino com documentacao clara sobre ISR, buffer e riscos de overrun.
-- Licenca: nao foi encontrada uma licenca clara nos arquivos analisados.
-- Uso permitido neste projeto: referencia conceitual.
-- Nao copiar: codigo de `TZXProcessing.ino`, `Storage.ino` ou demais arquivos sem nova verificacao de licenca.
+- Repository: [dev-hp/TZXDuino](https://gitlab.com/dev-hp/TZXDuino)
+- Reviewed commit: `f6aebbc`
+- License finding: no clear license was found in the reviewed files.
+- Use in RetroTape: conceptual reference only.
 
-Arquivos analisados:
+Reviewed files:
 
 - `README.md`
 - `TZXDuino.ino`
 - `TZXProcessing.ino`
-- `Storage.ino`
-- `Storage.h`
+- `Storage.ino` and `Storage.h`
 - `Display.ino`
 - `Buttons.ino`
 - `TZXDuino.h`
 - `userconfig.h`
 
+Its producer/consumer waveform buffer and minimal interrupt handler are useful
+architectural references. No code is copied.
+
 ### POWADCR
 
-- URL: https://github.com/hash6iron/powadcr
-- Commit analisado: `6f0599f`
-- Descricao: gravador/reprodutor digital de cassette para maquinas de 8 bits, baseado em ESP32 Audio Kit.
-- Licenca: GPL-3.0.
-- Uso permitido neste projeto: referencia conceitual, salvo se o projeto decidir adotar GPL-3.0.
-- Nao copiar: codigo de parser, audio, UI ou bibliotecas vendorizadas sem decisao explicita de licenca.
+- Repository: [hash6iron/powadcr](https://github.com/hash6iron/powadcr)
+- Reviewed commit: `6f0599f`
+- License: GPL-3.0.
+- Use in RetroTape: conceptual reference only; no POWADCR source is included.
 
-Arquivos analisados:
+Reviewed files:
 
 - `platformio.ini`
-- `README.md`
-- `LICENSE`
+- `README.md` and `LICENSE`
 - `src/config.h`
 - `src/globales.h`
 - `src/powadcr.cpp`
@@ -84,74 +84,70 @@ Arquivos analisados:
 - `src/PredictiveRadioBuffer.h`
 - `HMI.h`
 
-### SD_Tape_Player
+Useful concepts include pre-parsed block descriptors, PCM/I2S generation,
+predictive buffering, audio configuration, and separation of format processors.
+No parser, audio, UI, or vendored library code is copied.
 
-- URL: https://github.com/GadgetReboot/SD_Tape_Player
-- Commit analisado: `ed9a0ae`
-- Descricao: PCB para player CASDuino/TZXDuino baseado em Arduino Nano.
-- Licenca: nao foi encontrada uma licenca clara.
-- Uso permitido neste projeto: referencia de hardware e conceito.
+### SD Tape Player
 
-Arquivos analisados:
+- Repository: [GadgetReboot/SD_Tape_Player](https://github.com/GadgetReboot/SD_Tape_Player)
+- Reviewed commit: `ed9a0ae`
+- License finding: no clear license was found.
+- Use in RetroTape: hardware and connector concepts only.
+
+Reviewed files:
 
 - `README.md`
-- `KiCad/SD_Tape_Player.sch`
-- `KiCad/SD_Tape_Player.kicad_pcb`
-- `SD_Tape_Player-sch.pdf`
+- KiCad schematic and PCB files;
+- `SD_Tape_Player-sch.pdf`.
 
-## Especificacoes e fontes publicas de formato
+## Public format specifications
 
 ### ZX Spectrum TAP
 
-- Sinclair Wiki, TAP format: https://sinclair.wiki.zxnet.co.uk/wiki/TAP_format
-- Claus Jahn / World of Spectrum, TAP format: https://worldofspectrum.net/zx-modules/fileformats/tapformat.html
+- [Sinclair Wiki TAP format](https://sinclair.wiki.zxnet.co.uk/wiki/TAP_format)
+- [World of Spectrum TAP format](https://worldofspectrum.net/zx-modules/fileformats/tapformat.html)
 
-Resumo para implementacao:
-
-- Arquivo TAP e uma sequencia de blocos.
-- Cada bloco comeca com 2 bytes little-endian indicando o tamanho dos dados seguintes.
-- Os dados geralmente incluem byte de flag no inicio e checksum XOR no final, mas o container TAP nao interpreta o conteudo.
-
-### ESP32 e CYD
-
-- ESP-IDF v4.2, timer driver: https://docs.espressif.com/projects/esp-idf/en/v4.2/esp32/api-reference/peripherals/timer.html
-- CYD pin map e conector P4: https://github.com/witnessmenow/ESP32-Cheap-Yellow-Display/blob/main/PINS.md
-- Esquematico original arquivado: https://github.com/witnessmenow/ESP32-Cheap-Yellow-Display/tree/main/OriginalDocumentation/5-Schematic
-- SC8002B, amplificador de audio em ponte: https://www.alldatasheet.com/datasheet-pdf/pdf/1146797/FUMAN/SC8002B.html
-
-Resumo para implementacao:
-
-- O ESP32 possui quatro timers de hardware em dois grupos; o divisor 8 sobre o clock APB de 80 MHz produz ticks de 0,1 us.
-- GPIO 26 e o DAC2 do ESP32 e esta ligado a entrada do amplificador da CYD.
-- P4 e a saida do amplificador, nao um GPIO nem um terminal referenciado diretamente ao GND.
+A TAP file is a sequence of blocks. Each block starts with a two-byte
+little-endian payload length. The payload normally contains a flag byte and XOR
+checksum, but the container itself does not interpret them.
 
 ### ZX Spectrum TZX
 
-- TZX format specification v1.20: https://worldofspectrum.net/TZXformat.html
+- [TZX format specification v1.20](https://worldofspectrum.net/TZXformat.html)
 
-Resumo para implementacao:
+TZX preserves pulse timing and complex block structure. Initial candidates are
+IDs 10, 11, 12, 13, 14, and 20. More complex blocks require explicit design
+and hardware regression testing.
 
-- TZX preserva timings e blocos complexos.
-- Deve ficar para fase posterior.
-- Primeiros blocos candidatos: ID10, ID11, ID12, ID13, ID14, ID15, ID20 e mensagens claras para blocos nao suportados.
+### MSX CAS and TSX
 
-### MSX CAS e TSX
+- [MSX Wiki emulation file formats](https://www.msx.org/wiki/Emulation_related_file_formats)
+- [MSX2 Technical Handbook cassette interface](https://konamiman.github.io/MSX2-Technical-Handbook/md/Chapter5a.html)
 
-- MSX Wiki, emulation related file formats: https://www.msx.org/wiki/Emulation_related_file_formats
-- MSX2 Technical Handbook, cassette interface: https://konamiman.github.io/MSX2-Technical-Handbook/md/Chapter5a.html
+MSX CAS stores decoded BIOS cassette bytes. The known header sequence is
+`1F A6 DE BA CC 13 7D 74`. At 1200 baud, a zero bit uses one 1200 Hz cycle and
+a one bit uses two 2400 Hz cycles. Bytes are emitted with one start bit, eight
+LSB-first data bits, and two stop bits.
 
-Resumo para implementacao:
+TSX extends TZX with MSX-oriented blocks, notably ID 4B Kansas City data.
 
-- CAS contem bytes decodificados em formato BIOS MSX.
-- Sequencia de header conhecida: `1F A6 DE BA CC 13 7D 74`.
-- CAS nao preserva timing completo, gaps ou diferenca precisa entre header longo e curto.
-- Em 1200 baud, bit 0 usa 1 ciclo de 1200 Hz e bit 1 usa 2 ciclos de 2400 Hz.
-- Cada byte e emitido com start bit 0, 8 bits LSB primeiro e dois stop bits 1.
-- TSX estende TZX e adiciona bloco ID 4B para dados Kansas City Standard usados pelo MSX BIOS.
+## ESP32 and CYD references
 
-## Decisoes abertas
+- [ESP-IDF timer driver](https://docs.espressif.com/projects/esp-idf/en/v4.2/esp32/api-reference/peripherals/timer.html)
+- [CYD community pin map](https://github.com/witnessmenow/ESP32-Cheap-Yellow-Display/blob/main/PINS.md)
+- [Archived CYD schematic](https://github.com/witnessmenow/ESP32-Cheap-Yellow-Display/tree/main/OriginalDocumentation/5-Schematic)
+- [SC8002B datasheet](https://www.alldatasheet.com/datasheet-pdf/pdf/1146797/FUMAN/SC8002B.html)
 
-- Definir licenca do RetroTape-ESP32-CYD antes de qualquer copia de codigo GPL-3.0.
-- Confirmar pinagem exata da CYD usada pelo usuario.
-- Confirmar se a primeira saida de audio sera GPIO/PWM/DAC interno ou I2S PCM5102A.
-- Definir se LVGL entra na primeira etapa ou se a primeira tela sera feita com LovyanGFX/TFT_eSPI.
+The ESP32 APB clock divided by eight gives a 10 MHz timer and 0.1 us ticks.
+GPIO 26 is DAC2 and feeds the CYD amplifier. P4 is the bridged amplifier output,
+not a GPIO or ground-referenced line output.
+
+## Current decisions
+
+- RetroTape uses LovyanGFX rather than LVGL for the validated firmware.
+- The tested pin map is recorded in `src/config/pins.h` and `docs/HARDWARE.md`.
+- Current output uses ESP32 DAC2 and the onboard amplifier.
+- PCM5102A I2S remains a future option.
+- New format support must be clean-room implementation from public specs.
+- RetroTape is licensed under GPL-3.0.

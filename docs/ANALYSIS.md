@@ -1,209 +1,136 @@
-# Analise inicial e preparacao
+# Initial Research and Preparation
 
-Projeto: RetroTape-ESP32-CYD
-Data da analise: 2026-06-07
+- Project: RetroTape-ESP32-CYD
+- Research date: June 7, 2026
 
-## Objetivo desta fase
+## Purpose
 
-Esta fase estudou os projetos de referencia e definiu o que pode ser aproveitado conceitualmente para uma primeira versao limpa, modular e compilavel para a ESP32-2432S028 / CYD.
+The initial research reviewed established digital cassette projects and
+identified concepts suitable for a clean, modular ESP32 implementation. Local
+reference clones were used only for study and are excluded from the firmware
+repository.
 
-Os repositorios foram baixados apenas para estudo em `.analysis/reference-repos/`. Essa pasta fica ignorada pelo Git e nao deve virar parte do firmware.
-
-## Repositorios analisados
+## Repository findings
 
 ### MaxDuino
 
-Origem: https://github.com/rcmolina/MaxDuino
-Commit analisado: `12c2178`
-Licenca encontrada: nao ha licenca principal clara no topo do repositorio. Um arquivo isolado (`USBStorage.cpp`) menciona MIT, mas isso nao cobre o projeto inteiro.
+Reviewed commit `12c2178`. No clear repository-wide license was found.
 
-Arquivos principais analisados:
+MaxDuino is an efficient AVR-era firmware organized around Arduino
+`setup()`/`loop()`, physical buttons, a small display, SdFat, timer interrupts,
+and pin-level audio. `MaxProcessing.cpp` supports many TZX block types,
+`casProcessing.cpp` demonstrates byte-to-pulse state machines, and its
+two-page buffer limits contention between the producer and interrupt consumer.
 
-- `MaxDuino/MaxDuino.ino`
-- `MaxDuino/MaxProcessing.cpp`
-- `MaxDuino/casProcessing.cpp`
-- `MaxDuino/isr.cpp`
-- `MaxDuino/buffer.cpp`
-- `MaxDuino/buffer.h`
-- `MaxDuino/TimerCounter.cpp`
-- `MaxDuino/file_utils.cpp`
-- `MaxDuino/CheckForExt.cpp`
-- `MaxDuino/constants.h`
-- `MaxDuino/processing_state.h`
-- `platformio.ini`
-- `README.md`
-- `FILE_TYPES.md`
+The architecture is tightly coupled to global state, macros, AVR hardware, and
+its display/menu implementation. RetroTape therefore uses only the concepts:
 
-O que foi observado:
+- parser to pulse-buffer flow;
+- timing and block-state tables;
+- pause, polarity, and extension handling;
+- short interrupt routines.
 
-- O firmware e centrado em `setup()`/`loop()`, botoes fisicos, display pequeno, SD via SdFat e saida de audio por pino.
-- A reproducao separa parcialmente duas responsabilidades: o loop principal interpreta arquivo e enche buffer, enquanto uma rotina de timer/ISR consome periodos e muda o nivel do pino de audio.
-- `MaxProcessing.cpp` concentra o fluxo de TZX/TAP, incluindo blocos TZX comuns como ID10, ID11, ID12, ID13, ID14, ID15, ID20 e outros.
-- `casProcessing.cpp` tem uma logica util para entender como CAS/MSX e Dragon convertem bytes em padroes de pulso.
-- `buffer.cpp` usa double buffer com duas paginas, protegido por trechos curtos sem interrupcao.
-- `TimerCounter.cpp` tenta abstrair timers para diferentes placas.
-- A arquitetura e historica e eficiente para AVR, mas muito acoplada a globais, macros, display, botoes e estado de reproducao.
-
-Decisao:
-
-- Nao copiar codigo literal do MaxDuino.
-- Reaproveitar apenas conceitos: tabela de timings, fluxo parser -> buffer -> saida, estados de bloco, tratamento de pausa, polaridade e deteccao de extensao.
+No MaxDuino source code is copied.
 
 ### TZXDuino dev-hp
 
-Origem: https://gitlab.com/dev-hp/TZXDuino
-Commit analisado: `f6aebbc`
-Licenca encontrada: nao foi encontrada licenca clara nos arquivos analisados.
+Reviewed commit `f6aebbc`. No clear license was found in the reviewed files.
 
-Arquivos principais analisados:
+This project clearly documents an ISR plus main-loop producer model. Its
+waveform buffer is divided into producer and consumer regions, and the interrupt
+only reads durations and changes the output level. Expensive display work is
+reduced during playback to avoid underruns.
 
-- `README.md`
-- `TZXDuino.ino`
-- `TZXProcessing.ino`
-- `Storage.ino`
-- `Storage.h`
-- `Display.ino`
-- `Buttons.ino`
-- `TZXDuino.h`
-- `userconfig.h`
-
-O que foi observado:
-
-- O README explica com clareza a arquitetura ISR + `TZXLoop`.
-- `TZXProcessing.ino` usa `waveBuffer[128]`, ponteiros `wavePos` e `fillPos`, e fatias de 64 posicoes para evitar conflito entre produtor e consumidor.
-- A ISR apenas le o buffer e muda o nivel de audio; ela nao escreve de volta no buffer.
-- O loop evita atualizacoes caras de display durante playback e alterna contador/progresso para reduzir risco de underrun.
-- `Storage.ino` separa melhor o acesso a SD para ODROID-GO e Arduino, uma ideia util para nosso `SdCardService`.
-
-Decisao:
-
-- Nao copiar codigo literal.
-- Usar como referencia conceitual forte para o desenho do `PulseGenerator` e da fila de pulsos.
+RetroTape adopted the architectural principle of keeping timing-critical output
+independent from UI and storage work, without copying implementation code.
 
 ### POWADCR
 
-Origem: https://github.com/hash6iron/powadcr
-Commit analisado: `6f0599f`
-Licenca encontrada: GPL-3.0 explicita em `LICENSE` e nos cabecalhos de varios arquivos.
+Reviewed commit `6f0599f`. The project is explicitly GPL-3.0.
 
-Arquivos principais analisados:
+POWADCR is the closest modern-hardware reference: ESP32, PlatformIO, SD_MMC,
+digital audio, and an HMI. It pre-processes TAP, TZX, TSX, PZX, and CSW into
+descriptors, then produces PCM audio through format-specific processors.
 
-- `platformio.ini`
-- `README.md`
-- `src/config.h`
-- `src/globales.h`
-- `src/powadcr.cpp`
-- `src/TAPprocessor.h`
-- `src/TZXprocessor.h`
-- `src/TSXprocessor.h`
-- `src/PZXprocessor.h`
-- `src/ZXProcessor.h`
-- `src/SmartRadioBuffer.h`
-- `src/PredictiveRadioBuffer.h`
-- `HMI.h`
+Useful concepts:
 
-O que foi observado:
+- pre-parsed block descriptors;
+- predictive and stream buffering;
+- centralized signal configuration;
+- PCM/I2S generation;
+- separate format processors.
 
-- E a referencia mais proxima em hardware moderno, pois usa ESP32, PlatformIO, Arduino Framework, AudioKit, SD_MMC, audio digital e tela HMI.
-- `platformio.ini` usa ESP32 a 240 MHz, PSRAM, particao customizada e bibliotecas de audio.
-- `config.h` centraliza frequencias de amostragem, velocidade de SD, limites de blocos e parametros de audio.
-- `globales.h` define descritores para TAP, TZX, PZX e CSW, alem de muitos estados globais.
-- `TAPprocessor.h`, `TZXprocessor.h` e `TSXprocessor.h` analisam arquivos em uma etapa de descritores antes da reproducao.
-- `ZXProcessor.h` gera pulsos em amostras PCM e escreve em stream de audio, com funcoes como `semiPulse`, `fullPulse`, `pilotTone`, `zeroTone`, `oneTone` e geracao de silencio.
-- `powadcr.cpp` e poderoso, mas muito monolitico para o objetivo inicial deste projeto.
+Its code is not copied. RetroTape is GPL-3.0, but shared licensing alone does
+not replace provenance, attribution, and a deliberate integration review.
 
-Decisao:
+### SD Tape Player
 
-- Nao copiar codigo literal sem decisao explicita de licenca GPL-3.0 para o nosso projeto.
-- Reaproveitar conceitos: descritores de blocos, geracao por amostras PCM/I2S, configuracoes de volume/polaridade, teste de audio, cuidado com nivel de sinal e estrutura de SD.
-- Reimplementar uma versao menor e modular para CYD.
+Reviewed commit `ed9a0ae`. No clear license was found.
 
-### SD_Tape_Player
+This project is a tested Arduino Nano PCB for CASDuino/TZXDuino. It is useful as
+a connector and hardware-layout reference but does not provide reusable firmware
+for RetroTape.
 
-Origem: https://github.com/GadgetReboot/SD_Tape_Player
-Commit analisado: `ed9a0ae`
-Licenca encontrada: nao foi encontrada licenca clara.
+## Concepts adopted
 
-Arquivos principais analisados:
+- strict separation of UI, storage, parsing, and output;
+- non-blocking player state machines;
+- hardware timer output for timing-sensitive pulses;
+- explicit playback progress, pause, Stop, and polarity state;
+- fixed diagnostic tones and adjustable output level;
+- block-at-a-time SD reading;
+- format-specific players behind a common audio facade.
 
-- `README.md`
-- `KiCad/SD_Tape_Player.sch`
-- `KiCad/SD_Tape_Player.kicad_pcb`
-- `SD_Tape_Player-sch.pdf`
+## Clean-room implementation
 
-O que foi observado:
+RetroTape reimplements:
 
-- E uma referencia de hardware para uma placa compatavel com CASDuino em Arduino Nano.
-- O README informa que o PCB foi testado com CASDuino 1.24.
-- E util para entender a ideia de conector de audio e controle remoto de cassette, mas nao traz firmware proprio.
+- CYD display, touch, and pin configuration;
+- SD card browsing and filtering;
+- application state and touch navigation;
+- DAC sample output and test tones;
+- WAV parsing and playback;
+- standard TAP block playback and ZX ROM timings;
+- MSX CAS byte encoding;
+- settings persistence;
+- Wi-Fi and web upload behavior.
 
-Decisao:
+Future TZX and TSX support must also be implemented from public format
+specifications rather than third-party source.
 
-- Usar apenas como referencia de hardware/conceito.
+## Technical risks identified
 
-## O que sera reaproveitado
+- CYD pin maps and panel controllers vary by revision.
+- The onboard bridged amplifier is not a ground-referenced line output.
+- Vintage EAR/CASSETTE inputs vary in sensitivity and filtering.
+- Display, touch, SD, and network work can introduce timing latency.
+- Complex TZX/TSX control flow can substantially increase state complexity.
+- MSX CAS containers do not preserve every original gap and timing distinction.
+- Unlicensed or GPL source can create licensing conflicts if copied.
 
-- Modelo geral parser -> fila/buffer -> gerador de audio.
-- Separacao entre UI e audio para evitar jitter.
-- Double buffer ou fila circular de periodos/pulsos.
-- Conversao de T-states para tempo real no caso de Spectrum.
-- Timings padrao do loader ROM do ZX Spectrum/TK90X.
-- Ideia de descritores de blocos antes da reproducao.
-- Tratamento explicito de pausa, stop, play, polaridade e progresso.
-- Testes de audio com tons fixos e ajuste de volume.
-- Cuidados com atualizacao de tela durante playback.
+## How the implementation addressed the risks
 
-## O que sera reimplementado
+- The TPM408-2.8 display and XPT2046 orientation were validated on hardware.
+- Hardware wiring and the bridged P4 warning are documented.
+- Standard TAP uses a 10 MHz hardware timer and direct DAC register writes.
+- TAP edges are scheduled from an absolute deadline to avoid accumulated drift.
+- UI progress updates are limited during timing-sensitive playback.
+- WAV, TAP, CAS, and diagnostics are isolated behind `DacAudioOutput`.
+- A tagged functional baseline and regression checklist protect known behavior.
+- User settings are validated before reaching the audio layer.
 
-- Todo o codigo-fonte do firmware novo.
-- `TapParser`, `CasParser`, `TzxParser` e `TsxParser`.
-- `PulseGenerator`.
-- `TapePlayer`.
-- `AudioOutput`, `DacOutput`, `PwmOutput` e `I2sOutput`.
-- `SdCardService`.
-- UI para CYD, preferencialmente LVGL.
-- Configuracao de pinos para ESP32-2432S028.
-- Testes de audio.
+## Original incremental plan
 
-## Riscos tecnicos
+1. Create the PlatformIO base and CYD pin map.
+2. Initialize serial, display, touch, and SD.
+3. Add application states and filtered file browsing.
+4. Build a minimal Home, browser, player, and settings UI.
+5. Add the audio abstraction and diagnostic tones.
+6. Implement WAV.
+7. Implement standard TAP and ZX timings.
+8. Implement initial MSX CAS.
+9. Add Wi-Fi and web upload.
+10. Refactor and validate before adding TZX/TSX.
 
-- Pinagem da ESP32-2432S028 varia entre revisoes; display, touch, SD e audio precisam ser validados na placa real.
-- Saida de audio onboard pode ter amplitude, ruido ou impedancia inadequados para EAR/CASSETTE.
-- I2S com DAC externo PCM5102A deve ser tratado como caminho recomendado para qualidade e estabilidade.
-- LVGL e playback simultaneo podem causar jitter se a UI atualizar demais.
-- SD compartilhado com display/touch/SPI pode gerar latencia se a arquitetura bloquear a task de audio.
-- TZX/TSX tem muitos blocos; v1 deve suportar apenas TAP, WAV e talvez CAS.
-- CAS de MSX nao preserva todos os tempos do tape original; cabecalhos e pausas podem exigir heuristicas.
-- Copiar codigo de projetos sem licenca clara ou GPL-3.0 pode contaminar a licenca do projeto.
-
-## Estrategia de implementacao
-
-1. Criar base PlatformIO minima.
-2. Configurar pinos da CYD em `src/config/pins.h`.
-3. Inicializar Serial, display, touch e SD.
-4. Criar `AppController` com estados HOME, FILE_BROWSER, PLAYER, SETTINGS e ERROR.
-5. Criar `SdCardService` com listagem e filtro por extensao.
-6. Criar UI minima com home, navegador e player sem audio.
-7. Criar `AudioOutput` e modo de teste com tons.
-8. Implementar WAV simples.
-9. Implementar TAP Spectrum/TK90X.
-10. Implementar CAS MSX se os testes de audio estiverem estaveis.
-11. Deixar TZX/TSX como stubs documentados.
-
-## Plano de commits pequenos
-
-1. `docs: add initial reference analysis`
-2. `chore: ignore local analysis references`
-3. `chore: create platformio project skeleton`
-4. `docs: add hardware and architecture notes`
-5. `feat: add CYD pin configuration`
-6. `feat: initialize serial display touch and sd`
-7. `feat: add app controller states`
-8. `feat: add sd card file listing`
-9. `feat: add player screen skeleton`
-10. `feat: add audio output abstraction`
-11. `feat: add audio test tones`
-12. `feat: add wav playback`
-13. `feat: add tap parser and zx timing generator`
-14. `feat: add initial msx cas parser`
-
+The first nine items are now implemented. Current and future work is tracked in
+`docs/ROADMAP.md`.

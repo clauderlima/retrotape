@@ -1,105 +1,66 @@
-# Briefing normalizado
+# Project Brief
 
-## Nome
+## Product
 
-RetroTape-ESP32-CYD
+RetroTape is firmware for the ESP32-2432S028 / Cheap Yellow Display that turns
+the board into a modern digital cassette player for vintage computers.
 
-## Objetivo
+Initial targets:
 
-Criar um firmware para ESP32-2432S028, tambem conhecida como Cheap Yellow Display ou CYD, para funcionar como um emulador moderno de fita cassete para computadores antigos.
+- TK90X and ZX Spectrum;
+- MSX;
+- WAV playback for direct audio and signal tests.
 
-Alvos iniciais:
+## User flow
 
-- TK90X / ZX Spectrum
-- MSX
-- WAV como teste direto de audio
+1. The user powers on the CYD.
+2. A touch interface presents the available computer families.
+3. The user selects TK90X/ZX, MSX, or WAV.
+4. RetroTape lists matching files from the SD card.
+5. The user selects a file and opens the player.
+6. Play generates the required signal through the ESP32 audio output.
+7. The signal is connected to the computer EAR/CASSETTE input.
 
-## Fluxo esperado
+## Version 1 scope
 
-1. Usuario liga a CYD.
-2. Tela touch mostra a interface inicial.
-3. Usuario escolhe TK90X/Spectrum, MSX ou WAV.
-4. Firmware lista arquivos do cartao SD.
-5. Usuario toca no arquivo desejado.
-6. Firmware abre tela de player.
-7. Usuario pressiona Play.
-8. Firmware gera o sinal de audio correspondente na saida da ESP32.
-9. Sinal e conectado na entrada EAR/CASSETTE do computador antigo.
+- ESP32-2432S028 / ESP32-2432S028R;
+- PlatformIO and Arduino Framework;
+- C++17;
+- LovyanGFX user interface;
+- FAT32 microSD browsing;
+- PCM WAV playback;
+- standard ZX Spectrum TAP playback;
+- MSX BIOS CAS playback;
+- touch-controlled Play, Stop, navigation, settings, and diagnostics;
+- Wi-Fi configuration and web file upload.
 
-## Escopo da primeira versao funcional
+## Version 2 candidates
 
-- Plataforma: ESP32-2432S028 / CYD.
-- Framework: PlatformIO com Arduino Framework.
-- Linguagem: C++17.
-- UI: LVGL preferencialmente; se atrasar a base, usar LovyanGFX ou TFT_eSPI com uma abstracao simples.
-- SD: FAT32, leitura de diretorios e arquivos.
-- Formatos v1:
-  - WAV
-  - TAP para TK90X/ZX Spectrum
-  - CAS para MSX, se viavel apos estabilizar audio
-- Formatos v2:
-  - TZX
-  - TSX/TSZ
+- common TZX blocks;
+- TSX/TSZ support;
+- external I2S DAC output;
+- additional file-management operations;
+- support for more cassette formats.
 
-## Arquitetura desejada
+## Architecture rule
 
-```text
-src/
-  main.cpp
-  config/
-    pins.h
-  app/
-    AppController.h
-    AppController.cpp
-  storage/
-    SdCardService.h
-    SdCardService.cpp
-  ui/
-    ScreenHome.*
-    ScreenFileBrowser.*
-    ScreenPlayer.*
-    ScreenSettings.*
-  audio/
-    AudioOutput.h
-    DacOutput.*
-    PwmOutput.*
-    I2sOutput.*
-  tape/
-    TapePlayer.*
-    TapeFormatDetector.*
-    TapParser.*
-    CasParser.*
-    TzxParser.*
-    TsxParser.*
-    PulseGenerator.*
-    TapeBlock.*
-    TapeTiming.*
-docs/
-```
-
-## Regra principal de arquitetura
-
-UI, parser e audio nao devem ficar na mesma classe.
-
-O caminho desejado e:
+User interface, file parsing, storage, and signal generation must remain
+separate. The intended flow is:
 
 ```text
-arquivo no SD -> parser -> blocos/pulsos -> fila/buffer -> AudioOutput
+SD file -> format player/parser -> pulse or sample generation -> AudioOutput
+                                      ^
+                                      |
+                              progress and status
 ```
 
-## Prioridade imediata
+Timing-critical playback must not depend on display refreshes, web requests, or
+long blocking operations in the main loop.
 
-O primeiro marco nao e reproduzir tudo. O primeiro marco e:
+## Product priorities
 
-```text
-firmware compila, inicia a CYD, mostra UI minima e lista arquivos do SD
-```
-
-Depois:
-
-1. audio de teste;
-2. WAV;
-3. TAP;
-4. CAS;
-5. TZX/TSX.
-
+1. Preserve the hardware-validated TAP baseline.
+2. Keep all playback controls responsive.
+3. Make setup and file selection understandable on a 320 x 240 display.
+4. Validate format support on real target computers.
+5. Add complex formats only after the current formats remain stable.

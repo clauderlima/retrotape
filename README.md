@@ -121,6 +121,17 @@ See [Architecture](docs/ARCHITECTURE.md), [Validated baseline](docs/BASELINE.md)
 and [Regression checklist](docs/REGRESSION_CHECKLIST.md) before changing
 hardware-timed TAP playback.
 
+## Documentation
+
+- [Project brief](docs/PROJECT_BRIEF.md)
+- [Architecture](docs/ARCHITECTURE.md)
+- [Hardware](docs/HARDWARE.md)
+- [Validated baseline](docs/BASELINE.md)
+- [Regression checklist](docs/REGRESSION_CHECKLIST.md)
+- [Roadmap](docs/ROADMAP.md)
+- [Analysis](docs/ANALYSIS.md)
+- [References](docs/REFERENCES.md)
+
 ## Format status
 
 | Format | Status |
@@ -130,3 +141,8 @@ hardware-timed TAP playback.
 | CAS | MSX BIOS 1200-baud playback |
 | TZX | Planned |
 | TSX/TSZ | Planned |
+
+## License
+
+RetroTape is distributed under the GNU General Public License v3.0. See
+[LICENSE](LICENSE).

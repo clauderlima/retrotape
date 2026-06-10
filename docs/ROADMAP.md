@@ -1,95 +1,75 @@
-# Roadmap inicial
+# Roadmap
 
-## Marco 0: Analise e preparacao
+## Completed foundation
 
-Status: iniciado.
+### Research and preparation
 
-- Estudar referencias.
-- Registrar decisoes de licenca.
-- Definir arquitetura alvo.
-- Evitar copia literal de codigo de terceiros.
+- reviewed MaxDuino, TZXDuino, POWADCR, and hardware references;
+- recorded licensing constraints;
+- chose conceptual reimplementation instead of copying unlicensed or GPL code.
 
-## Marco 1: Base compilavel
+### CYD hardware
 
-- Criar projeto PlatformIO.
-- Configurar ambiente ESP32.
-- Criar estrutura de pastas.
-- Adicionar `main.cpp` minimo.
-- Inicializar Serial.
+- validated TPM408-2.8 with LovyanGFX ILI9342 profile;
+- aligned XPT2046 touch with the landscape display;
+- mounted FAT32 microSD;
+- validated GPIO 26 DAC and the onboard amplifier path.
 
-## Marco 2: Hardware CYD
+### Core firmware
 
-Status: concluido na placa TPM408-2.8 com perfil ILI9342.
+- modular application, UI, storage, network, settings, and audio layers;
+- 2 x 2 Home navigation and touch file browser;
+- WAV, standard TAP, and MSX CAS playback;
+- elapsed time, progress, Play, Stop, and direct platform-root navigation;
+- Wi-Fi setup, fallback access point, and web uploads;
+- persistent TAP settings and validated-profile restoration;
+- non-blocking audio diagnostics at 1 kHz, 1200 Hz, and 2400 Hz;
+- persistent global DAC level for WAV, CAS, and diagnostics.
 
-- Mapear pinos em `src/config/pins.h`.
-- Inicializar display.
-- Inicializar touch.
-- Inicializar SD.
-- Validar cartao FAT32.
+### Refactoring phases
 
-## Marco 3: UI minima
+- Phase 0: recorded and tagged the hardware-validated baseline;
+- Phase 1: separated audio players, UI components, and browser navigation;
+- Phase 2: introduced the current visual system and cassette identity;
+- Phase 3: added validated persistent settings;
+- Phase 4: added responsive output diagnostics;
+- Phase 5: standardized public documentation in English.
 
-Status: implementado inicialmente.
+## Near-term validation
 
-- Tela HOME.
-- Tela FILE_BROWSER.
-- Tela PLAYER sem audio.
-- Tela SETTINGS simples.
-- Navegacao por toque.
+- complete the hardware regression checklist after every playback change;
+- confirm persisted settings across a full power cycle;
+- validate WAV variants on the real output;
+- validate CAS loading on target MSX computers;
+- test web uploads and reconnect behavior on multiple networks;
+- record tested file hashes, cable details, amplitudes, and computer revisions.
 
-## Marco 4: Audio base
+## Planned format work
 
-Status: concluido como base funcional; TAP usa timer de hardware e DAC com amplitude configuravel no GPIO 26.
+### TZX
 
-- Criar `AudioOutput`.
-- Implementar primeira saida simples.
-- Adicionar tons de teste:
-  - 1 kHz
-  - 1200 Hz
-  - 2400 Hz
-- Adicionar volume e polaridade.
+Implement from the public TZX specification, beginning with common blocks:
 
-## Marco 5: WAV
+- ID 10 standard-speed data;
+- ID 11 turbo data;
+- ID 12 pure tone;
+- ID 13 pulse sequence;
+- ID 14 pure data;
+- ID 20 pause or stop.
 
-Status: implementado.
+Unsupported blocks must stop safely and display a clear error. Complex control
+flow, CSW, direct recording, generalized data, and metadata can follow later.
 
-- Ler WAV PCM do SD.
-- Reproduzir via saida selecionada.
-- Validar nivel de sinal.
+### TSX / TSZ
 
-## Marco 6: TAP Spectrum/TK90X
+Add support only after the reusable TZX block engine is stable. Prioritize the
+MSX Kansas City data block ID 4B and verify it on real MSX hardware.
 
-Status: implementado inicialmente com TAP padrao.
+## Future hardware and product work
 
-- Implementar parser TAP.
-- Implementar timings ROM padrao.
-- Gerar pulsos em tempo real.
-- Testar arquivos simples.
-
-## Marco 7: CAS MSX
-
-Status: iniciado com CAS BIOS em 1200 baud.
-
-- Implementar parser CAS.
-- Implementar geracao Kansas City/MSX BIOS.
-- Testar CLOAD/BLOAD com arquivos pequenos.
-
-## Marco 8: Servidor web de arquivos
-
-Status: implementado inicialmente.
-
-- Configurar WiFi pela tela `Menu > Config WiFi`.
-- Escanear redes disponiveis.
-- Selecionar rede e informar senha por teclado na tela.
-- Salvar credenciais na memoria do ESP32.
-- Mostrar IP no rodape.
-- Criar servidor HTTP na porta 80.
-- Enviar `.cas` para `/msx`.
-- Enviar `.tap` para `/tk90x`.
-- Listar arquivos existentes na pagina web.
-
-## Marco 9: TZX/TSX
-
-- Criar stubs claros.
-- Implementar blocos comuns primeiro.
-- Mensagem clara para bloco nao suportado.
+- optional PCM5102A I2S output;
+- file delete and rename operations in the web interface;
+- downloadable diagnostics and playback logs;
+- release packaging and version display;
+- additional computers and cassette formats after the existing targets remain
+  regression-free.
