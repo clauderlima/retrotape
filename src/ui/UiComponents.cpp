@@ -15,14 +15,14 @@ void UiComponents::drawHeader(const char* title, const char* subtitle, bool bran
 
   const int textX = branded ? 58 : 54;
   if (branded) {
-    drawCassette(12, 12, theme::Accent);
+    drawCassette(10, 12, 38, 27, theme::Accent);
     display_.setFont(&fonts::Font4);
     display_.setTextColor(theme::TextPrimary, theme::Surface);
     display_.setTextDatum(textdatum_t::top_left);
-    display_.drawString(title, textX, 2);
+    display_.drawString(title, textX, 6);
     display_.setFont(&fonts::Font0);
     display_.setTextColor(theme::TextSecondary, theme::Surface);
-    display_.drawString(subtitle, textX, 31);
+    display_.drawString(subtitle, textX, 34);
   } else {
     display_.setTextDatum(textdatum_t::top_left);
     display_.setFont(&fonts::Font2);
@@ -143,14 +143,68 @@ void UiComponents::formatTime(uint32_t ms, char* output, size_t outputSize) cons
            static_cast<unsigned>(seconds));
 }
 
-void UiComponents::drawCassette(int x, int y, uint16_t color) {
-  display_.drawRoundRect(x, y, 34, 24, 4, color);
-  display_.drawCircle(x + 10, y + 10, 4, color);
-  display_.drawCircle(x + 24, y + 10, 4, color);
-  display_.drawLine(x + 10, y + 10, x + 24, y + 10, color);
-  display_.drawLine(x + 8, y + 20, x + 26, y + 20, color);
-  display_.drawLine(x + 11, y + 16, x + 8, y + 20, color);
-  display_.drawLine(x + 23, y + 16, x + 26, y + 20, color);
+void UiComponents::drawCassette(int x, int y, int w, int h, uint16_t color) {
+  const int centerY = y + (h * 9 / 20);
+  const int leftHubX = x + (w * 3 / 10);
+  const int rightHubX = x + (w * 7 / 10);
+  const int hubRadius = w >= 34 ? 4 : 3;
+  const int windowX = x + 4;
+  const int windowY = y + 4;
+  const int windowW = w - 8;
+  const int windowH = h / 2;
+  const int lowerY = y + h - 4;
+
+  display_.fillRoundRect(x, y, w, h, 4, theme::SurfaceRaised);
+  display_.drawRoundRect(x, y, w, h, 4, color);
+  display_.fillRoundRect(windowX, windowY, windowW, windowH, 2, theme::Background);
+  display_.drawRoundRect(windowX, windowY, windowW, windowH, 2, theme::Divider);
+
+  display_.drawFastHLine(leftHubX, centerY, rightHubX - leftHubX, color);
+  display_.fillCircle(leftHubX, centerY, hubRadius, color);
+  display_.fillCircle(rightHubX, centerY, hubRadius, color);
+  display_.fillCircle(leftHubX, centerY, hubRadius - 2, theme::Background);
+  display_.fillCircle(rightHubX, centerY, hubRadius - 2, theme::Background);
+
+  display_.drawLine(x + (w / 3), y + h - 9, x + (w / 4), lowerY, color);
+  display_.drawFastHLine(x + (w / 4), lowerY, w / 2, color);
+  display_.drawLine(x + (w * 2 / 3), y + h - 9, x + (w * 3 / 4), lowerY, color);
+  display_.fillCircle(x + 4, y + h - 4, 1, theme::TextSecondary);
+  display_.fillCircle(x + w - 5, y + h - 4, 1, theme::TextSecondary);
+}
+
+void UiComponents::drawSpectrumIcon(int x, int y, uint16_t color) {
+  display_.fillRoundRect(x - 12, y - 9, 24, 18, 2, theme::SurfaceMuted);
+  display_.drawRoundRect(x - 12, y - 9, 24, 18, 2, color);
+  display_.fillRect(x - 9, y - 5, 18, 8, theme::Background);
+  display_.drawFastHLine(x - 7, y - 3, 14, theme::TextSecondary);
+  display_.drawFastHLine(x - 7, y, 14, theme::TextSecondary);
+  display_.drawFastVLine(x - 3, y - 4, 7, theme::Divider);
+  display_.drawFastVLine(x + 2, y - 4, 7, theme::Divider);
+
+  display_.drawLine(x + 2, y + 4, x + 7, y + 8, theme::Danger);
+  display_.drawLine(x + 4, y + 4, x + 9, y + 8, theme::Accent);
+  display_.drawLine(x + 6, y + 4, x + 11, y + 8, theme::Success);
+  display_.drawLine(x, y + 4, x + 5, y + 8, theme::Info);
+}
+
+void UiComponents::drawMsxIcon(int x, int y, uint16_t color) {
+  const int top = y - 7;
+  const int bottom = y + 7;
+  const int middle = y;
+
+  display_.drawFastVLine(x - 12, top, 15, color);
+  display_.drawFastVLine(x - 6, top, 15, color);
+  display_.drawLine(x - 11, top, x - 9, middle - 1, color);
+  display_.drawLine(x - 7, top, x - 9, middle - 1, color);
+
+  display_.drawFastHLine(x - 3, top, 7, color);
+  display_.drawFastVLine(x - 3, top, 7, color);
+  display_.drawFastHLine(x - 3, middle, 7, color);
+  display_.drawFastVLine(x + 3, middle, 8, color);
+  display_.drawFastHLine(x - 3, bottom, 7, color);
+
+  display_.drawLine(x + 6, top, x + 12, bottom, color);
+  display_.drawLine(x + 12, top, x + 6, bottom, color);
 }
 
 void UiComponents::drawIcon(UiIcon icon, int x, int y, uint16_t color) {
@@ -161,12 +215,18 @@ void UiComponents::drawIcon(UiIcon icon, int x, int y, uint16_t color) {
       display_.drawFastHLine(x - 3, y, 13, color);
       break;
     case UiIcon::Cassette:
-      drawCassette(x - 10, y - 8, color);
+      drawCassette(x - 13, y - 9, 26, 18, color);
       break;
     case UiIcon::Computer:
       display_.drawRoundRect(x - 9, y - 8, 18, 13, 2, color);
       display_.drawFastHLine(x - 5, y + 8, 10, color);
       display_.drawFastVLine(x, y + 5, 4, color);
+      break;
+    case UiIcon::Spectrum:
+      drawSpectrumIcon(x, y, color);
+      break;
+    case UiIcon::Msx:
+      drawMsxIcon(x, y, color);
       break;
     case UiIcon::Wave:
       display_.drawLine(x - 10, y, x - 6, y, color);

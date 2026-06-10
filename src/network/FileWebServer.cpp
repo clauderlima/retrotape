@@ -71,7 +71,7 @@ void FileWebServer::handleRoot() {
 
   server_.sendContent("<section><h2>Files on the SD card</h2><div class=\"grid\">");
   sendFileList("MSX", "/msx", ".cas");
-  sendFileList("TK90X / ZX", "/tk90x", ".tap");
+  sendFileList("ZX Spectrum", "/tk90x", ".tap");
   server_.sendContent("</div></section>");
 
   sendPageFooter();
@@ -193,13 +193,13 @@ void FileWebServer::sendPageHeader(const char* title) {
 }
 
 void FileWebServer::sendPageFooter() {
-  server_.sendContent("</main><footer>MSX accepts .cas files; TK90X / ZX accepts .tap files.</footer></body></html>");
+  server_.sendContent("</main><footer>MSX accepts .cas files; ZX Spectrum accepts .tap files.</footer></body></html>");
 }
 
 void FileWebServer::sendUploadForm() {
   server_.sendContent("<form method=\"post\" action=\"/upload\" enctype=\"multipart/form-data\">");
   server_.sendContent("<label for=\"platform\">Computer</label><select id=\"platform\" name=\"platform\">");
-  server_.sendContent("<option value=\"msx\">MSX (.cas)</option><option value=\"tk90x\">TK90X / ZX (.tap)</option>");
+  server_.sendContent("<option value=\"msx\">MSX (.cas)</option><option value=\"tk90x\">ZX Spectrum (.tap)</option>");
   server_.sendContent("</select><label for=\"file\">Files</label><input id=\"file\" name=\"file\" type=\"file\" multiple accept=\".cas,.tap\">");
   server_.sendContent("<button type=\"submit\">Upload to SD card</button></form>");
 }

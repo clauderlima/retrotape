@@ -73,10 +73,10 @@ void UiService::showHome(const char* status) {
   components_.clear();
   drawHeader(text::AppName, text::ChooseSystem, true);
 
-  drawHomeTile(left, 58, buttonW, buttonH, "TK90X / ZX", text::TkTape,
-               theme::Accent, UiIcon::Cassette, UiAction::OpenTk90x);
+  drawHomeTile(left, 58, buttonW, buttonH, "ZX Spectrum", text::ZxTape,
+               theme::Accent, UiIcon::Spectrum, UiAction::OpenTk90x);
   drawHomeTile(right, 58, buttonW, buttonH, "MSX", text::MsxTape,
-               theme::Primary, UiIcon::Computer, UiAction::OpenMsx);
+               theme::Primary, UiIcon::Msx, UiAction::OpenMsx);
   drawHomeTile(left, 130, buttonW, buttonH, "WAV", text::WavAudio,
                theme::Info, UiIcon::Wave, UiAction::OpenWav);
   drawHomeTile(right, 130, buttonW, buttonH, text::Settings, text::DeviceSetup,

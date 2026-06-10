@@ -4,7 +4,7 @@ namespace ui::text {
 
 constexpr char AppName[] = "RetroTape";
 constexpr char ChooseSystem[] = "Choose a system";
-constexpr char TkTape[] = "Spectrum tape";
+constexpr char ZxTape[] = "TAP files";
 constexpr char MsxTape[] = "CAS tape";
 constexpr char WavAudio[] = "Audio files";
 constexpr char DeviceSetup[] = "Device setup";
@@ -39,7 +39,7 @@ constexpr char ToneFinished[] = "Test tone finished";
 constexpr char ToneStopped[] = "Test tone stopped";
 constexpr char ToneFailed[] = "Could not start test tone";
 constexpr char SettingsReady[] = "Settings ready";
-constexpr char TapCompatibility[] = "TK/ZX compatibility";
+constexpr char TapCompatibility[] = "ZX Spectrum compatibility";
 constexpr char Timing[] = "Timing";
 constexpr char Level[] = "Level";
 constexpr char Polarity[] = "Polarity";
@@ -61,7 +61,7 @@ constexpr char WifiFailed[] = "Wi-Fi connection failed";
 constexpr char PasswordTooLong[] = "Password is too long";
 constexpr char SdNotMounted[] = "SD card not mounted";
 constexpr char ApplicationError[] = "Application error";
-constexpr char TapDefaults[] = "TK90X baseline: timing 100.0%, level 31%";
+constexpr char TapDefaults[] = "Validated: timing 100.0%, level 31%";
 constexpr char RestoreDefaults[] = "Restore defaults";
 constexpr char TapDefaultsRestored[] = "Validated TAP defaults restored";
 constexpr char SettingsSaved[] = "Settings saved";

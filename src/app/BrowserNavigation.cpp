@@ -36,7 +36,7 @@ const String& BrowserNavigation::path() const {
 const char* BrowserNavigation::title() const {
   switch (mode_) {
     case BrowserMode::Tk90x:
-      return "TK90X / ZX";
+      return "ZX Spectrum";
     case BrowserMode::Msx:
       return "MSX";
     case BrowserMode::Wav:

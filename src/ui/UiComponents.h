@@ -11,6 +11,8 @@ enum class UiIcon : uint8_t {
   Back,
   Cassette,
   Computer,
+  Spectrum,
+  Msx,
   Wave,
   Sliders,
   Folder,
@@ -45,7 +47,9 @@ class UiComponents {
 
  private:
   void drawIcon(UiIcon icon, int x, int y, uint16_t color);
-  void drawCassette(int x, int y, uint16_t color);
+  void drawCassette(int x, int y, int w, int h, uint16_t color);
+  void drawSpectrumIcon(int x, int y, uint16_t color);
+  void drawMsxIcon(int x, int y, uint16_t color);
 
   hardware::CydDisplay& display_;
 };
