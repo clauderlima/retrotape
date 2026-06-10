@@ -108,7 +108,7 @@ String WifiService::ipAddressText() const {
   if (accessPointMode_) {
     return WiFi.softAPIP().toString();
   }
-  return "sem IP";
+  return "no IP";
 }
 
 String WifiService::footerText() const {
@@ -128,7 +128,7 @@ String WifiService::statusText() const {
   if (accessPointMode_) {
     return String("AP: ") + config::wifi::FallbackApSsid + " " + ipAddressText();
   }
-  return "WiFi: desconectado";
+  return "Wi-Fi: disconnected";
 }
 
 String WifiService::currentSsid() const {

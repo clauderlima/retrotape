@@ -53,5 +53,9 @@ constexpr char PasswordTooLong[] = "Password is too long";
 constexpr char SdNotMounted[] = "SD card not mounted";
 constexpr char ApplicationError[] = "Application error";
 constexpr char TapDefaults[] = "TK90X baseline: timing 100.0%, level 31%";
+constexpr char RestoreDefaults[] = "Restore defaults";
+constexpr char TapDefaultsRestored[] = "Validated TAP defaults restored";
+constexpr char SettingsSaved[] = "Settings saved";
+constexpr char SettingsSaveFailed[] = "Could not save settings";
 
 }  // namespace ui::text

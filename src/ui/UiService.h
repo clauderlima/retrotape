@@ -31,6 +31,7 @@ enum class UiAction : uint8_t {
   TapLevelDown,
   TapLevelUp,
   TapInvert,
+  TapRestoreDefaults,
   WifiRescan,
   WifiPrevious,
   WifiNext,
@@ -73,7 +74,8 @@ class UiService {
                   uint32_t durationMs = 0, bool playing = false);
   void updatePlayerProgress(uint32_t elapsedMs, uint32_t durationMs, bool playing);
   void showSettings(const char* displayDriver, bool sdMounted, const char* wifiStatus);
-  void showTapSettings(uint16_t timingPermille, uint8_t amplitude, bool inverted);
+  void showTapSettings(uint16_t timingPermille, uint8_t amplitude, bool inverted,
+                       const char* status = nullptr, bool error = false);
   void showWifiList(const network::WifiNetworkInfo* networks, size_t networkCount, size_t offset, size_t totalCount,
                     const char* status, bool hasPrevious, bool hasNext);
   void showWifiPassword(const char* ssid, const char* password, const char* keyPage, const char* status);

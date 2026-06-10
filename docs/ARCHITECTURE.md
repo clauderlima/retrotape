@@ -62,6 +62,16 @@ and filters entries by extension.
 the only active class under `src/tape`; unfinished parser placeholders were
 removed in Phase 1 so the source tree represents actual behavior.
 
+## Settings
+
+`SettingsService` owns persistent application configuration in a dedicated
+ESP32 Preferences namespace. TAP timing, amplitude, and polarity are validated
+before they reach the audio facade. Missing, incompatible, or out-of-range
+values are replaced with the hardware-validated defaults and written back.
+
+The TAP settings screen saves each explicit adjustment and provides a
+one-touch restore action for timing 100.0%, UI level 31%, and normal polarity.
+
 ## Audio
 
 `AudioOutput` is the interface consumed by the application. `DacAudioOutput` is

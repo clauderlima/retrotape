@@ -229,7 +229,8 @@ void UiService::showSettings(const char* displayDriver, bool sdMounted, const ch
   drawFooter(text::SettingsReady, theme::Primary);
 }
 
-void UiService::showTapSettings(uint16_t timingPermille, uint8_t amplitude, bool inverted) {
+void UiService::showTapSettings(uint16_t timingPermille, uint8_t amplitude,
+                                bool inverted, const char* status, bool error) {
   resetTouchZones();
   components_.clear();
   drawHeader(text::TapSetup, text::TapCompatibility);
@@ -268,7 +269,13 @@ void UiService::showTapSettings(uint16_t timingPermille, uint8_t amplitude, bool
              inverted ? theme::Danger : theme::Primary, theme::TextPrimary,
              UiAction::TapInvert);
 
-  drawFooter(text::TapDefaults, theme::Primary);
+  drawButton(82, 182, 156, 28, text::RestoreDefaults, theme::Warning,
+             theme::TextPrimary, UiAction::TapRestoreDefaults,
+             UiIcon::Refresh);
+
+  drawFooter(status == nullptr ? text::TapDefaults : status,
+             status == nullptr ? theme::Primary
+                               : (error ? theme::Danger : theme::Success));
 }
 
 void UiService::showWifiList(const network::WifiNetworkInfo* networks, size_t networkCount, size_t offset,

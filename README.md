@@ -13,6 +13,7 @@ digital cassette player for vintage computers.
 - 1200-baud MSX BIOS CAS playback;
 - elapsed time, duration, progress bar, and immediate Stop control;
 - adjustable TAP timing, output level, and polarity;
+- persistent TAP settings with one-touch restoration of the validated profile;
 - on-device Wi-Fi scan and password keyboard;
 - web upload and file listing for `.tap` and `.cas` files;
 - fallback `RetroTape` access point when no saved Wi-Fi is available.
@@ -107,6 +108,7 @@ src/
   config/    Board configuration
   hardware/  Display and touch configuration
   network/   Wi-Fi and web file server
+  settings/  Persistent validated user settings
   storage/   SD card access
   tape/      File format detection
   ui/        Screens, text, theme, and reusable components

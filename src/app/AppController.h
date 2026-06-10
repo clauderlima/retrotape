@@ -6,6 +6,7 @@
 #include "audio/AudioOutput.h"
 #include "network/FileWebServer.h"
 #include "network/WifiService.h"
+#include "settings/SettingsService.h"
 #include "storage/SdCardService.h"
 #include "tape/TapeFormatDetector.h"
 #include "ui/UiService.h"
@@ -26,7 +27,8 @@ enum class AppState {
 class AppController {
  public:
   AppController(storage::SdCardService& storage, ui::UiService& ui, audio::AudioOutput& audio,
-                network::WifiService& wifi, network::FileWebServer& webServer);
+                network::WifiService& wifi, network::FileWebServer& webServer,
+                settings::SettingsService& settings);
 
   void begin();
   void loop();
@@ -52,7 +54,9 @@ class AppController {
   void refreshBrowser();
   void showBrowser();
   void showPlayerScreen(const char* status, bool playing);
-  void showTapSettingsScreen();
+  void showTapSettingsScreen(const char* status = nullptr, bool error = false);
+  void applyTapProfile(const settings::TapProfile& profile);
+  bool persistTapProfile();
   void scanWifiNetworks(const char* status);
   void showWifiListScreen(const char* status);
   void showWifiPasswordScreen(const char* status);
@@ -74,12 +78,14 @@ class AppController {
   audio::AudioOutput& audio_;
   network::WifiService& wifi_;
   network::FileWebServer& webServer_;
+  settings::SettingsService& settings_;
   AppState state_ = AppState::Home;
   BrowserNavigation browserNavigation_;
   bool storageReady_ = false;
   bool audioReady_ = false;
   bool wifiReady_ = false;
   bool webReady_ = false;
+  bool settingsReady_ = false;
   String selectedName_;
   String selectedPath_;
   tape::TapeFormat selectedFormat_ = tape::TapeFormat::Unknown;
@@ -96,9 +102,9 @@ class AppController {
   uint32_t lastPlayerProgressMs_ = 0;
   uint32_t lastWebFooterMs_ = 0;
   uint32_t lastHeartbeatMs_ = 0;
-  uint16_t tapTimingPermille_ = 1000;
-  uint8_t tapAmplitude_ = 40;
-  bool tapInverted_ = false;
+  uint16_t tapTimingPermille_ = settings::TapProfile::DefaultTimingPermille;
+  uint8_t tapAmplitude_ = settings::TapProfile::DefaultAmplitude;
+  bool tapInverted_ = settings::TapProfile::DefaultInverted;
 };
 
 }  // namespace app

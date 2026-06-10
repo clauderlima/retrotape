@@ -4,6 +4,7 @@
 #include "audio/DacAudioOutput.h"
 #include "network/FileWebServer.h"
 #include "network/WifiService.h"
+#include "settings/SettingsService.h"
 #include "storage/SdCardService.h"
 #include "ui/UiService.h"
 
@@ -12,7 +13,9 @@ ui::UiService uiService;
 audio::DacAudioOutput audioOutput;
 network::WifiService wifiService;
 network::FileWebServer fileWebServer(sdCard, wifiService);
-app::AppController appController(sdCard, uiService, audioOutput, wifiService, fileWebServer);
+settings::SettingsService settingsService;
+app::AppController appController(sdCard, uiService, audioOutput, wifiService,
+                                 fileWebServer, settingsService);
 
 void setup() {
   Serial.begin(115200);

@@ -15,13 +15,21 @@ const char* const WifiKeyPages[] = {
 }  // namespace
 
 AppController::AppController(storage::SdCardService& storage, ui::UiService& ui, audio::AudioOutput& audio,
-                             network::WifiService& wifi, network::FileWebServer& webServer)
-    : storage_(storage), ui_(ui), audio_(audio), wifi_(wifi), webServer_(webServer) {}
+                             network::WifiService& wifi, network::FileWebServer& webServer,
+                             settings::SettingsService& settings)
+    : storage_(storage),
+      ui_(ui),
+      audio_(audio),
+      wifi_(wifi),
+      webServer_(webServer),
+      settings_(settings) {}
 
 void AppController::begin() {
   ui_.begin();
   ui_.showStatus("Starting services");
 
+  settingsReady_ = settings_.begin();
+  applyTapProfile(settings_.tapProfile());
   audioReady_ = audio_.begin();
   audio_.setTapTimingPermille(tapTimingPermille_);
   audio_.setTapAmplitude(tapAmplitude_);
@@ -142,27 +150,52 @@ bool AppController::handleTapSettingsAction(ui::UiAction action) {
     case ui::UiAction::TapTimingDown:
       tapTimingPermille_ = tapTimingPermille_ > 950 ? tapTimingPermille_ - 5 : 950;
       audio_.setTapTimingPermille(tapTimingPermille_);
-      showTapSettingsScreen();
+      settingsReady_ = persistTapProfile();
+      showTapSettingsScreen(settingsReady_ ? ui::text::SettingsSaved
+                                           : ui::text::SettingsSaveFailed,
+                            !settingsReady_);
       return true;
     case ui::UiAction::TapTimingUp:
       tapTimingPermille_ = tapTimingPermille_ < 1050 ? tapTimingPermille_ + 5 : 1050;
       audio_.setTapTimingPermille(tapTimingPermille_);
-      showTapSettingsScreen();
+      settingsReady_ = persistTapProfile();
+      showTapSettingsScreen(settingsReady_ ? ui::text::SettingsSaved
+                                           : ui::text::SettingsSaveFailed,
+                            !settingsReady_);
       return true;
     case ui::UiAction::TapLevelDown:
       tapAmplitude_ = tapAmplitude_ > 16 ? tapAmplitude_ - 8 : 8;
       audio_.setTapAmplitude(tapAmplitude_);
-      showTapSettingsScreen();
+      settingsReady_ = persistTapProfile();
+      showTapSettingsScreen(settingsReady_ ? ui::text::SettingsSaved
+                                           : ui::text::SettingsSaveFailed,
+                            !settingsReady_);
       return true;
     case ui::UiAction::TapLevelUp:
       tapAmplitude_ = tapAmplitude_ < 112 ? tapAmplitude_ + 8 : 120;
       audio_.setTapAmplitude(tapAmplitude_);
-      showTapSettingsScreen();
+      settingsReady_ = persistTapProfile();
+      showTapSettingsScreen(settingsReady_ ? ui::text::SettingsSaved
+                                           : ui::text::SettingsSaveFailed,
+                            !settingsReady_);
       return true;
     case ui::UiAction::TapInvert:
       tapInverted_ = !tapInverted_;
       audio_.setTapInverted(tapInverted_);
-      showTapSettingsScreen();
+      settingsReady_ = persistTapProfile();
+      showTapSettingsScreen(settingsReady_ ? ui::text::SettingsSaved
+                                           : ui::text::SettingsSaveFailed,
+                            !settingsReady_);
+      return true;
+    case ui::UiAction::TapRestoreDefaults:
+      settingsReady_ = settings_.restoreTapDefaults();
+      applyTapProfile(settings_.tapProfile());
+      audio_.setTapTimingPermille(tapTimingPermille_);
+      audio_.setTapAmplitude(tapAmplitude_);
+      audio_.setTapInverted(tapInverted_);
+      showTapSettingsScreen(settingsReady_ ? ui::text::TapDefaultsRestored
+                                           : ui::text::SettingsSaveFailed,
+                            !settingsReady_);
       return true;
     default:
       return false;
@@ -376,8 +409,25 @@ void AppController::showPlayerScreen(const char* status, bool playing) {
                  audio_.playbackDurationMs(), playing);
 }
 
-void AppController::showTapSettingsScreen() {
-  ui_.showTapSettings(tapTimingPermille_, tapAmplitude_, tapInverted_);
+void AppController::showTapSettingsScreen(const char* status, bool error) {
+  ui_.showTapSettings(tapTimingPermille_, tapAmplitude_, tapInverted_, status,
+                      error);
+}
+
+void AppController::applyTapProfile(const settings::TapProfile& profile) {
+  tapTimingPermille_ = profile.timingPermille;
+  tapAmplitude_ = profile.amplitude;
+  tapInverted_ = profile.inverted;
+}
+
+bool AppController::persistTapProfile() {
+  const settings::TapProfile profile{
+      tapTimingPermille_,
+      tapAmplitude_,
+      tapInverted_,
+  };
+  settingsReady_ = settings_.saveTapProfile(profile);
+  return settingsReady_;
 }
 
 void AppController::scanWifiNetworks(const char* status) {
