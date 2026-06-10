@@ -70,6 +70,7 @@ size_t SdCardService::listDirectory(const char* path, FileEntry* entries, size_t
 
     if (directoryEntry || matchesExtension(name.c_str(), extensions, extensionCount)) {
       entries[count].name = name;
+      entries[count].displayName = name;
       entries[count].path = String(path);
       if (!entries[count].path.endsWith("/")) {
         entries[count].path += "/";

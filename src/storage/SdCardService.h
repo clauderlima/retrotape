@@ -9,6 +9,7 @@ namespace storage {
 
 struct FileEntry {
   String name;
+  String displayName;
   String path;
   bool isDirectory = false;
   uint32_t size = 0;

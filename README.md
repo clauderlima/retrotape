@@ -18,6 +18,7 @@ digital cassette player for vintage computers.
 - persistent DAC output level shared by WAV, CAS, and test tones;
 - on-device Wi-Fi scan and password keyboard;
 - web upload and file listing for `.tap` and `.cas` files;
+- optional personal IGDB identification with friendly titles and cover art;
 - fallback `RetroTape` access point when no saved Wi-Fi is available.
 
 ## Target hardware
@@ -56,6 +57,7 @@ Use a FAT32-formatted card. The firmware creates these directories:
 /msx
 /tk90x
 /wav
+/metadata
 ```
 
 | Platform | Format | Directory |
@@ -83,6 +85,29 @@ Address: http://192.168.4.1
 The web page lists existing MSX and TK90X/ZX files and uploads new files to
 their matching directories.
 
+### Personal IGDB integration
+
+RetroTape can optionally identify uploaded ZX Spectrum and MSX games through
+IGDB. Each device owner supplies personal Twitch developer credentials:
+
+1. Create a Twitch application at the
+   [Twitch Developer Console](https://dev.twitch.tv/console/apps/create).
+2. Open the RetroTape web page and select **Configure IGDB**.
+3. Enter the application's Client ID and Client Secret.
+4. Upload one TAP or CAS file.
+5. Confirm the matching game suggested by IGDB.
+
+Credentials and the OAuth token are stored only in the ESP32 NVS settings.
+They are not written to the SD card or included in the source repository.
+Use the configuration page only on a trusted local network because the local
+RetroTape web interface uses HTTP.
+
+Confirmed metadata is cached under `/metadata` on the SD card together with a
+small JPEG cover. The file browser then uses the friendly game title, and the
+player displays the cover, release year, developer, and genres. Original game
+files are never renamed or modified. Upload and playback continue to work when
+IGDB is not configured or the internet is unavailable.
+
 ## Audio connection
 
 The board speaker connector is the bridged output of the SC8002B amplifier. Its
@@ -109,6 +134,7 @@ src/
   audio/     DAC driver and WAV, TAP, CAS players
   config/    Board configuration
   hardware/  Display and touch configuration
+  metadata/  Cached game information and cover locations
   network/   Wi-Fi and web file server
   settings/  Persistent validated user settings
   storage/   SD card access

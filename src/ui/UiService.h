@@ -3,6 +3,7 @@
 #include <Arduino.h>
 
 #include "hardware/CydDisplay.h"
+#include "metadata/GameMetadata.h"
 #include "network/WifiService.h"
 #include "storage/SdCardService.h"
 #include "ui/UiComponents.h"
@@ -78,7 +79,9 @@ class UiService {
   void showFileBrowser(const char* title, const char* path, const storage::FileEntry* entries, size_t entryCount,
                        size_t offset, size_t totalCount, bool hasPrevious, bool hasNext);
   void showPlayer(const char* filename, const char* format, const char* status, uint32_t elapsedMs = 0,
-                  uint32_t durationMs = 0, bool playing = false);
+                  uint32_t durationMs = 0, bool playing = false,
+                  const metadata::GameMetadata* metadata = nullptr);
+  void updatePlayerState(const char* status, bool playing);
   void updatePlayerProgress(uint32_t elapsedMs, uint32_t durationMs, bool playing);
   void showSettings(const char* displayDriver, bool sdMounted, const char* wifiStatus);
   void showAudioTest(uint16_t frequencyHz, uint8_t level, bool playing,

@@ -2,7 +2,9 @@
 
 #include "app/AppController.h"
 #include "audio/DacAudioOutput.h"
+#include "metadata/GameMetadata.h"
 #include "network/FileWebServer.h"
+#include "network/IgdbService.h"
 #include "network/WifiService.h"
 #include "settings/SettingsService.h"
 #include "storage/SdCardService.h"
@@ -12,10 +14,14 @@ storage::SdCardService sdCard;
 ui::UiService uiService;
 audio::DacAudioOutput audioOutput;
 network::WifiService wifiService;
-network::FileWebServer fileWebServer(sdCard, wifiService);
+metadata::GameMetadataService gameMetadataService;
+network::IgdbService igdbService(gameMetadataService);
+network::FileWebServer fileWebServer(sdCard, wifiService, igdbService,
+                                     gameMetadataService);
 settings::SettingsService settingsService;
 app::AppController appController(sdCard, uiService, audioOutput, wifiService,
-                                 fileWebServer, settingsService);
+                                 fileWebServer, settingsService,
+                                 gameMetadataService);
 
 void setup() {
   Serial.begin(115200);

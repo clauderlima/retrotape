@@ -86,6 +86,20 @@ Hardware note for the validated machine:
 - [ ] Invalid extensions are rejected.
 - [ ] Audio playback is not disrupted by web server activity.
 
+## Personal IGDB integration
+
+- [ ] The IGDB settings page never displays a stored Client Secret or token.
+- [ ] Invalid or missing credentials do not prevent normal uploads.
+- [ ] A single TAP or CAS upload opens the identification step when IGDB is
+      configured and internet access is available.
+- [ ] Search results are filtered to ZX Spectrum or MSX/MSX2.
+- [ ] Confirming a result creates JSON metadata and, when available, a JPEG
+      cover under `/metadata`.
+- [ ] The web library and device browser show the friendly title.
+- [ ] The Player shows cover, year, developer, and genres before playback.
+- [ ] Starting TAP playback does not reread the cover from the SD card.
+- [ ] TAP loading still succeeds with the validated hardware and timing profile.
+
 ## Persistence
 
 - [ ] TAP timing persists after reboot.

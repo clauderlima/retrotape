@@ -1,5 +1,7 @@
 #include "ui/UiService.h"
 
+#include <SD.h>
+
 #include "ui/UiText.h"
 #include "ui/UiTheme.h"
 
@@ -113,7 +115,7 @@ void UiService::showFileBrowser(const char* title, const char* path, const stora
 
       const storage::FileEntry& entry = entries[index];
       drawListItem(listX, rowY + static_cast<int>(row) * (rowH + rowGap), rowW,
-                   rowH, entry.name.c_str(),
+                   rowH, entry.displayName.c_str(),
                    entry.isDirectory ? theme::Accent : theme::Primary,
                    entry.isDirectory ? UiIcon::Folder : UiIcon::File,
                    browserSelectAction(row));
@@ -138,27 +140,71 @@ void UiService::showFileBrowser(const char* title, const char* path, const stora
   drawFooter(text::SelectFile, theme::Primary);
 }
 
-void UiService::showPlayer(const char* filename, const char* format, const char* status, uint32_t elapsedMs,
-                           uint32_t durationMs, bool playing) {
+void UiService::showPlayer(const char* filename, const char* format,
+                           const char* status, uint32_t elapsedMs,
+                           uint32_t durationMs, bool playing,
+                           const metadata::GameMetadata* metadata) {
   resetTouchZones();
   components_.clear();
   drawHeader(text::Player, format);
   drawBackButton();
 
-  components_.drawPanel(12, 58, display_.width() - 24, 72);
+  components_.drawPanel(12, 56, display_.width() - 24, 91);
   display_.setTextDatum(textdatum_t::top_left);
-  display_.setTextColor(theme::TextSecondary, theme::Surface);
-  display_.setFont(&fonts::Font0);
-  display_.drawString(text::File, 22, 67);
-  display_.setFont(&fonts::Font2);
-  drawTextFit(String(filename), 22, 84, display_.width() - 44,
-              theme::TextPrimary, theme::Surface);
+  const bool hasMetadata = metadata != nullptr && metadata->available;
+  int textX = 22;
+  int textWidth = display_.width() - 44;
+  if (hasMetadata && metadata->coverPath.length() > 0 &&
+      SD.exists(metadata->coverPath)) {
+    display_.drawJpgFile(SD, metadata->coverPath.c_str(), 20, 62, 55, 78, 0, 0,
+                         0.61f);
+    textX = 84;
+    textWidth = display_.width() - textX - 18;
+  }
+
+  if (hasMetadata) {
+    display_.setFont(&fonts::Font2);
+    drawTextFit(metadata->title, textX, 64, textWidth,
+                theme::TextPrimary, theme::Surface);
+    display_.setFont(&fonts::Font0);
+    String release = metadata->platform;
+    if (metadata->year > 0) {
+      release += " - ";
+      release += String(metadata->year);
+    }
+    drawTextFit(release, textX, 88, textWidth,
+                theme::Accent, theme::Surface);
+    drawTextFit(metadata->developer, textX, 105, textWidth,
+                theme::TextSecondary, theme::Surface);
+    drawTextFit(metadata->genres, textX, 122, textWidth,
+                theme::TextSecondary, theme::Surface);
+  } else {
+    display_.setTextColor(theme::TextSecondary, theme::Surface);
+    display_.setFont(&fonts::Font0);
+    display_.drawString(text::File, 22, 70);
+    display_.setFont(&fonts::Font2);
+    drawTextFit(String(filename), 22, 88, display_.width() - 44,
+                theme::TextPrimary, theme::Surface);
+  }
 
   updatePlayerProgress(elapsedMs, durationMs, playing);
 
-  drawButton(36, 152, 110, 40, text::Play, theme::Success, theme::TextPrimary,
+  drawButton(36, 178, 110, 34, text::Play, theme::Success, theme::TextPrimary,
              playing ? UiAction::None : UiAction::PlayerPlay, UiIcon::Play);
-  drawButton(174, 152, 110, 40, text::Stop, theme::Danger, theme::TextPrimary,
+  drawButton(174, 178, 110, 34, text::Stop, theme::Danger, theme::TextPrimary,
+             playing ? UiAction::PlayerStop : UiAction::None, UiIcon::Stop);
+  drawFooter(status == nullptr ? text::Ready : status,
+             playing ? theme::Primary : theme::Success);
+}
+
+void UiService::updatePlayerState(const char* status, bool playing) {
+  resetTouchZones();
+  drawBackButton();
+  drawButton(36, 178, 110, 34, text::Play, theme::Success,
+             theme::TextPrimary,
+             playing ? UiAction::None : UiAction::PlayerPlay, UiIcon::Play);
+  drawButton(174, 178, 110, 34, text::Stop, theme::Danger,
+             theme::TextPrimary,
              playing ? UiAction::PlayerStop : UiAction::None, UiIcon::Stop);
   drawFooter(status == nullptr ? text::Ready : status,
              playing ? theme::Primary : theme::Success);
@@ -173,16 +219,16 @@ void UiService::updatePlayerProgress(uint32_t elapsedMs, uint32_t durationMs, bo
   snprintf(label, sizeof(label), "%s / %s", elapsed, durationMs == 0 ? "--:--" : duration);
 
   const int x = 22;
-  const int y = 108;
+  const int y = 148;
   const int w = display_.width() - 44;
-  const int barY = 128;
+  const int barY = 166;
   const int barH = 8;
 
   display_.startWrite();
-  display_.fillRect(x, y, w, 31, theme::Surface);
+  display_.fillRect(x, y, w, 27, theme::Background);
   display_.setTextDatum(textdatum_t::top_left);
   display_.setTextColor(playing ? theme::Primary : theme::TextSecondary,
-                        theme::Surface);
+                        theme::Background);
   display_.setFont(&fonts::Font2);
   display_.drawString(label, x, y);
 

@@ -16,13 +16,15 @@ const char* const WifiKeyPages[] = {
 
 AppController::AppController(storage::SdCardService& storage, ui::UiService& ui, audio::AudioOutput& audio,
                              network::WifiService& wifi, network::FileWebServer& webServer,
-                             settings::SettingsService& settings)
+                             settings::SettingsService& settings,
+                             metadata::GameMetadataService& metadata)
     : storage_(storage),
       ui_(ui),
       audio_(audio),
       wifi_(wifi),
       webServer_(webServer),
-      settings_(settings) {}
+      settings_(settings),
+      metadata_(metadata) {}
 
 void AppController::begin() {
   ui_.begin();
@@ -275,7 +277,9 @@ bool AppController::handlePlayerAction(ui::UiAction action) {
         if (audio_.playWavFile(selectedPath_.c_str())) {
           playerWasPlaying_ = true;
           lastPlayerProgressMs_ = 0;
-          showPlayerScreen("Playing WAV...", true);
+          ui_.updatePlayerProgress(audio_.playbackElapsedMs(),
+                                   audio_.playbackDurationMs(), true);
+          ui_.updatePlayerState("Playing WAV...", true);
         } else {
           showPlayerScreen("WAV error", false);
         }
@@ -286,7 +290,9 @@ bool AppController::handlePlayerAction(ui::UiAction action) {
         if (audio_.playTapFile(selectedPath_.c_str())) {
           playerWasPlaying_ = true;
           lastPlayerProgressMs_ = 0;
-          showPlayerScreen("Playing TAP...", true);
+          ui_.updatePlayerProgress(audio_.playbackElapsedMs(),
+                                   audio_.playbackDurationMs(), true);
+          ui_.updatePlayerState("Playing TAP...", true);
         } else {
           showPlayerScreen("TAP error", false);
         }
@@ -297,7 +303,9 @@ bool AppController::handlePlayerAction(ui::UiAction action) {
         if (audio_.playCasFile(selectedPath_.c_str())) {
           playerWasPlaying_ = true;
           lastPlayerProgressMs_ = 0;
-          showPlayerScreen("Playing CAS...", true);
+          ui_.updatePlayerProgress(audio_.playbackElapsedMs(),
+                                   audio_.playbackDurationMs(), true);
+          ui_.updatePlayerState("Playing CAS...", true);
         } else {
           showPlayerScreen("CAS error", false);
         }
@@ -441,6 +449,15 @@ void AppController::refreshBrowser() {
   browserEntryCount_ =
       storage_.listDirectory(browserNavigation_.path().c_str(), browserEntries_,
                              MaxBrowserEntries, extensions, extensionCount);
+  for (size_t index = 0; index < browserEntryCount_; ++index) {
+    if (browserEntries_[index].isDirectory) {
+      continue;
+    }
+    metadata::GameMetadata game;
+    if (metadata_.loadForGame(browserEntries_[index].path, game)) {
+      browserEntries_[index].displayName = game.title;
+    }
+  }
 }
 
 void AppController::showBrowser() {
@@ -453,7 +470,8 @@ void AppController::showBrowser() {
 
 void AppController::showPlayerScreen(const char* status, bool playing) {
   ui_.showPlayer(selectedName_.c_str(), selectedFormatName(), status, audio_.playbackElapsedMs(),
-                 audio_.playbackDurationMs(), playing);
+                 audio_.playbackDurationMs(), playing,
+                 selectedMetadata_.available ? &selectedMetadata_ : nullptr);
 }
 
 void AppController::showTapSettingsScreen(const char* status, bool error) {
@@ -649,6 +667,8 @@ void AppController::setPlayerFile(const storage::FileEntry& entry) {
   selectedName_ = entry.name;
   selectedPath_ = entry.path;
   selectedFormat_ = tape::TapeFormatDetector::detectFromPath(selectedPath_);
+  selectedMetadata_ = metadata::GameMetadata{};
+  metadata_.loadForGame(selectedPath_, selectedMetadata_);
 
   Serial.print("Selected file: ");
   Serial.println(selectedPath_);

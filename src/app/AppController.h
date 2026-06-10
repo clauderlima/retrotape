@@ -4,6 +4,7 @@
 
 #include "app/BrowserNavigation.h"
 #include "audio/AudioOutput.h"
+#include "metadata/GameMetadata.h"
 #include "network/FileWebServer.h"
 #include "network/WifiService.h"
 #include "settings/SettingsService.h"
@@ -29,7 +30,8 @@ class AppController {
  public:
   AppController(storage::SdCardService& storage, ui::UiService& ui, audio::AudioOutput& audio,
                 network::WifiService& wifi, network::FileWebServer& webServer,
-                settings::SettingsService& settings);
+                settings::SettingsService& settings,
+                metadata::GameMetadataService& metadata);
 
   void begin();
   void loop();
@@ -84,6 +86,7 @@ class AppController {
   network::WifiService& wifi_;
   network::FileWebServer& webServer_;
   settings::SettingsService& settings_;
+  metadata::GameMetadataService& metadata_;
   AppState state_ = AppState::Home;
   BrowserNavigation browserNavigation_;
   bool storageReady_ = false;
@@ -94,6 +97,7 @@ class AppController {
   String selectedName_;
   String selectedPath_;
   tape::TapeFormat selectedFormat_ = tape::TapeFormat::Unknown;
+  metadata::GameMetadata selectedMetadata_;
   storage::FileEntry browserEntries_[MaxBrowserEntries];
   network::WifiNetworkInfo wifiNetworks_[MaxWifiNetworks];
   size_t browserEntryCount_ = 0;

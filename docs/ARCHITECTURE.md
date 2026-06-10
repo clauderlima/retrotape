@@ -53,6 +53,22 @@ lightweight cassette mark drawn with display primitives, so it requires no
 bitmap storage. All visual work remains isolated from application and audio
 code.
 
+## Game metadata
+
+- `GameMetadataService` stores one JSON document and an optional small JPEG
+  cover for each identified TAP or CAS file.
+- Metadata filenames use a stable hash of the original game path, so game files
+  never need to be renamed.
+- `IgdbService` stores personal Twitch credentials in ESP32 NVS, obtains and
+  reuses an OAuth application token, and accesses IGDB over validated TLS.
+- The web server filters searches by ZX Spectrum, MSX, or MSX2 and requires the
+  user to confirm a result before metadata is saved.
+- Metadata and covers are cached under `/metadata` on the SD card. Playback and
+  ordinary uploads remain available without IGDB or internet access.
+- The Player reads the cover before playback begins. During playback it updates
+  only controls and progress, avoiding additional cover reads in the
+  timing-sensitive TAP path.
+
 ## Storage and format detection
 
 `SdCardService` mounts the SD card, creates standard directories, lists files,
