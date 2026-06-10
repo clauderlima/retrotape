@@ -1,0 +1,10 @@
+.pio/
+.vscode/
+.analysis/
+compile_commands.json
+build/
+dist/
+*.bin
+*.elf
+*.map
+*.log

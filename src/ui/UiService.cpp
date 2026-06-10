@@ -1,0 +1,530 @@
+#include "ui/UiService.h"
+
+namespace ui {
+
+bool UiService::begin() {
+  Serial.println("Starting CYD display");
+  display_.init();
+  display_.setRotation(0);
+  display_.setBrightness(255);
+  display_.fillScreen(TFT_BLACK);
+  display_.setTextDatum(textdatum_t::top_left);
+  display_.setTextColor(TFT_WHITE, TFT_BLACK);
+  display_.setFont(&fonts::Font2);
+
+  Serial.print("CYD display size: ");
+  Serial.print(display_.width());
+  Serial.print("x");
+  Serial.println(display_.height());
+  Serial.println("CYD display initialized");
+  return true;
+}
+
+void UiService::setFooterSuffix(const char* suffix) {
+  footerSuffix_ = suffix == nullptr ? "" : suffix;
+}
+
+UiAction UiService::pollAction() {
+  uint16_t x = 0;
+  uint16_t y = 0;
+  const bool touched = display_.getTouch(&x, &y);
+
+  if (!touched) {
+    touchWasDown_ = false;
+    return UiAction::None;
+  }
+
+  if (touchWasDown_) {
+    return UiAction::None;
+  }
+
+  const uint32_t now = millis();
+  if (now - lastTouchMs_ < 160) {
+    return UiAction::None;
+  }
+
+  touchWasDown_ = true;
+  lastTouchMs_ = now;
+
+  const UiAction action = hitTest(x, y);
+  Serial.print("Touch x=");
+  Serial.print(x);
+  Serial.print(" y=");
+  Serial.print(y);
+  Serial.print(" action=");
+  Serial.println(static_cast<unsigned>(action));
+  return action;
+}
+
+void UiService::showHome(const char* status) {
+  resetTouchZones();
+
+  const int screenW = display_.width();
+  const int margin = 12;
+  const int gap = 10;
+  const int buttonW = (screenW - (margin * 2) - gap) / 2;
+  const int buttonH = 48;
+  const int left = margin;
+  const int right = margin + buttonW + gap;
+
+  display_.fillScreen(TFT_BLACK);
+  drawHeader("RetroTape", "Escolha o sistema");
+
+  drawButton(left, 58, buttonW, buttonH, "TK90X / ZX", TFT_DARKCYAN, TFT_WHITE, UiAction::OpenTk90x);
+  drawButton(right, 58, buttonW, buttonH, "MSX", TFT_DARKGREEN, TFT_WHITE, UiAction::OpenMsx);
+  drawButton(left, 116, buttonW, buttonH, "WAV", TFT_MAROON, TFT_WHITE, UiAction::OpenWav);
+  drawButton(right, 116, buttonW, buttonH, "Menu", TFT_DARKGREY, TFT_WHITE, UiAction::OpenMenu);
+
+  drawFooter(status == nullptr ? "Home ready" : status, TFT_DARKGREEN);
+}
+
+void UiService::showFileBrowser(const char* title, const char* path, const storage::FileEntry* entries,
+                                size_t entryCount, size_t offset, size_t totalCount, bool hasPrevious,
+                                bool hasNext) {
+  resetTouchZones();
+  display_.fillScreen(TFT_BLACK);
+  drawHeader(title, path);
+  drawBackButton();
+
+  const int listX = 10;
+  const int rowY = 54;
+  const int rowW = display_.width() - 20;
+  const int rowH = 28;
+  const int rowGap = 5;
+
+  if (entryCount == 0) {
+    display_.setTextDatum(textdatum_t::top_left);
+    display_.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
+    display_.setFont(&fonts::Font2);
+    display_.drawString("Nenhum arquivo encontrado.", 18, 92);
+  } else {
+    for (size_t row = 0; row < 4; ++row) {
+      const size_t index = offset + row;
+      if (index >= entryCount) {
+        break;
+      }
+
+      const storage::FileEntry& entry = entries[index];
+      String label = entry.isDirectory ? "[DIR] " : "      ";
+      label += entry.name;
+      drawButton(listX, rowY + static_cast<int>(row) * (rowH + rowGap), rowW, rowH, label.c_str(),
+                 entry.isDirectory ? TFT_NAVY : TFT_DARKCYAN, TFT_WHITE, browserSelectAction(row));
+    }
+  }
+
+  drawButton(10, 188, 84, 28, "Anterior", hasPrevious ? TFT_DARKGREY : TFT_BLACK, TFT_WHITE,
+             hasPrevious ? UiAction::BrowserPrevious : UiAction::None);
+  drawButton(226, 188, 84, 28, "Proxima", hasNext ? TFT_DARKGREY : TFT_BLACK, TFT_WHITE,
+             hasNext ? UiAction::BrowserNext : UiAction::None);
+
+  char pageInfo[40];
+  const size_t first = totalCount == 0 ? 0 : offset + 1;
+  const size_t last = min(offset + static_cast<size_t>(4), totalCount);
+  snprintf(pageInfo, sizeof(pageInfo), "%u-%u de %u", static_cast<unsigned>(first), static_cast<unsigned>(last),
+           static_cast<unsigned>(totalCount));
+  display_.setTextDatum(textdatum_t::middle_center);
+  display_.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
+  display_.setFont(&fonts::Font2);
+  display_.drawString(pageInfo, display_.width() / 2, 202);
+
+  drawFooter("Toque em um arquivo", TFT_DARKGREEN);
+}
+
+void UiService::showPlayer(const char* filename, const char* format, const char* status, uint32_t elapsedMs,
+                           uint32_t durationMs, bool playing) {
+  resetTouchZones();
+  display_.fillScreen(TFT_BLACK);
+  drawHeader("Player", format);
+  drawBackButton();
+
+  display_.setTextDatum(textdatum_t::top_left);
+  display_.setTextColor(TFT_WHITE, TFT_BLACK);
+  display_.setFont(&fonts::Font2);
+  display_.drawString("Arquivo:", 16, 62);
+  drawTextFit(String(filename), 16, 84, display_.width() - 32, TFT_LIGHTGREY, TFT_BLACK);
+
+  updatePlayerProgress(elapsedMs, durationMs, playing);
+
+  drawButton(36, 148, 110, 40, "Play", playing ? TFT_BLACK : TFT_DARKGREEN, TFT_WHITE,
+             playing ? UiAction::None : UiAction::PlayerPlay);
+  drawButton(174, 148, 110, 40, "Stop", playing ? TFT_MAROON : TFT_BLACK, TFT_WHITE,
+             playing ? UiAction::PlayerStop : UiAction::None);
+  drawFooter(status == nullptr ? "Pronto" : status, TFT_DARKGREEN);
+}
+
+void UiService::updatePlayerProgress(uint32_t elapsedMs, uint32_t durationMs, bool playing) {
+  char elapsed[8] = {};
+  char duration[8] = {};
+  char label[24] = {};
+  formatTime(elapsedMs, elapsed, sizeof(elapsed));
+  formatTime(durationMs, duration, sizeof(duration));
+  snprintf(label, sizeof(label), "%s / %s", elapsed, durationMs == 0 ? "--:--" : duration);
+
+  const int x = 16;
+  const int y = 112;
+  const int w = display_.width() - 32;
+  const int barY = 132;
+  const int barH = 8;
+
+  display_.startWrite();
+  display_.fillRect(x, y, w, 34, TFT_BLACK);
+  display_.setTextDatum(textdatum_t::top_left);
+  display_.setTextColor(playing ? TFT_GREEN : TFT_LIGHTGREY, TFT_BLACK);
+  display_.setFont(&fonts::Font2);
+  display_.drawString(label, x, y);
+
+  display_.drawRoundRect(x, barY, w, barH, 3, TFT_DARKGREY);
+  if (durationMs > 0) {
+    uint32_t fillW = (static_cast<uint64_t>(elapsedMs) * static_cast<uint32_t>(w - 2)) / durationMs;
+    if (fillW > static_cast<uint32_t>(w - 2)) {
+      fillW = w - 2;
+    }
+    if (fillW > 0) {
+      display_.fillRoundRect(x + 1, barY + 1, static_cast<int>(fillW), barH - 2, 2, TFT_GREEN);
+    }
+  }
+  display_.endWrite();
+}
+
+void UiService::showSettings(const char* displayDriver, bool sdMounted, const char* wifiStatus) {
+  resetTouchZones();
+  display_.fillScreen(TFT_BLACK);
+  drawHeader("Menu", "Configuracao");
+  drawBackButton();
+
+  display_.setTextDatum(textdatum_t::top_left);
+  display_.setTextColor(TFT_WHITE, TFT_BLACK);
+  display_.setFont(&fonts::Font2);
+  display_.drawString("Display:", 18, 64);
+  display_.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
+  display_.drawString(displayDriver, 118, 64);
+
+  display_.setTextColor(TFT_WHITE, TFT_BLACK);
+  display_.drawString("SD:", 18, 92);
+  display_.setTextColor(sdMounted ? TFT_GREEN : TFT_RED, TFT_BLACK);
+  display_.drawString(sdMounted ? "montado" : "nao montado", 118, 92);
+
+  display_.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
+  drawTextFit(String(wifiStatus == nullptr ? "WiFi: -" : wifiStatus), 18, 124, display_.width() - 36,
+              TFT_LIGHTGREY, TFT_BLACK);
+
+  drawButton(18, 154, 132, 34, "Config WiFi", TFT_DARKCYAN, TFT_WHITE, UiAction::OpenWifiSettings);
+  drawButton(168, 154, 132, 34, "Ajuste TAP", TFT_MAROON, TFT_WHITE, UiAction::OpenTapSettings);
+  drawFooter("Menu pronto", TFT_DARKGREEN);
+}
+
+void UiService::showTapSettings(uint16_t timingPermille, uint8_t amplitude, bool inverted) {
+  resetTouchZones();
+  display_.fillScreen(TFT_BLACK);
+  drawHeader("Ajuste TAP", "Compatibilidade TK/ZX");
+  drawBackButton();
+
+  display_.setTextDatum(textdatum_t::top_left);
+  display_.setFont(&fonts::Font2);
+  display_.setTextColor(TFT_WHITE, TFT_BLACK);
+
+  char timing[16] = {};
+  snprintf(timing, sizeof(timing), "%.1f%%", timingPermille / 10.0F);
+  display_.drawString("Timing", 18, 66);
+  display_.setTextColor(TFT_CYAN, TFT_BLACK);
+  display_.drawString(timing, 112, 66);
+  drawButton(198, 58, 48, 30, "-", TFT_DARKGREY, TFT_WHITE, UiAction::TapTimingDown);
+  drawButton(254, 58, 48, 30, "+", TFT_DARKGREEN, TFT_WHITE, UiAction::TapTimingUp);
+
+  display_.setTextColor(TFT_WHITE, TFT_BLACK);
+  display_.drawString("Nivel", 18, 108);
+  display_.setTextColor(TFT_YELLOW, TFT_BLACK);
+  char level[16] = {};
+  const uint16_t levelPercent = (static_cast<uint16_t>(amplitude) * 100U) / 127U;
+  snprintf(level, sizeof(level), "%u%%", levelPercent);
+  display_.drawString(level, 112, 108);
+  drawButton(198, 100, 48, 30, "-", TFT_DARKGREY, TFT_WHITE, UiAction::TapLevelDown);
+  drawButton(254, 100, 48, 30, "+", TFT_DARKGREEN, TFT_WHITE, UiAction::TapLevelUp);
+
+  display_.setTextColor(TFT_WHITE, TFT_BLACK);
+  display_.drawString("Polaridade", 18, 150);
+  drawButton(168, 142, 134, 32, inverted ? "Invertida" : "Normal",
+             inverted ? TFT_MAROON : TFT_DARKCYAN, TFT_WHITE, UiAction::TapInvert);
+
+  drawFooter("Base TK90X: timing 100,5%, nivel 31%", TFT_DARKGREEN);
+}
+
+void UiService::showWifiList(const network::WifiNetworkInfo* networks, size_t networkCount, size_t offset,
+                             size_t totalCount, const char* status, bool hasPrevious, bool hasNext) {
+  resetTouchZones();
+  display_.fillScreen(TFT_BLACK);
+  drawHeader("WiFi", "Escolha a rede");
+  drawBackButton();
+
+  if (networkCount == 0) {
+    display_.setTextDatum(textdatum_t::top_left);
+    display_.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
+    display_.setFont(&fonts::Font2);
+    display_.drawString("Nenhuma rede encontrada.", 18, 86);
+  } else {
+    const int listX = 10;
+    const int rowY = 54;
+    const int rowW = display_.width() - 20;
+    const int rowH = 28;
+    const int rowGap = 5;
+
+    for (size_t row = 0; row < 4; ++row) {
+      const size_t index = offset + row;
+      if (index >= networkCount) {
+        break;
+      }
+
+      String label = networks[index].encrypted ? "[P] " : "[A] ";
+      label += networks[index].ssid;
+      label += " ";
+      label += networks[index].rssi;
+      label += "dBm";
+      drawButton(listX, rowY + static_cast<int>(row) * (rowH + rowGap), rowW, rowH, label.c_str(), TFT_DARKCYAN,
+                 TFT_WHITE, wifiSelectAction(row));
+    }
+  }
+
+  drawButton(10, 188, 78, 28, "Anterior", hasPrevious ? TFT_DARKGREY : TFT_BLACK, TFT_WHITE,
+             hasPrevious ? UiAction::WifiPrevious : UiAction::None);
+  drawButton(98, 188, 78, 28, "Buscar", TFT_DARKGREEN, TFT_WHITE, UiAction::WifiRescan);
+  drawButton(230, 188, 78, 28, "Proxima", hasNext ? TFT_DARKGREY : TFT_BLACK, TFT_WHITE,
+             hasNext ? UiAction::WifiNext : UiAction::None);
+
+  drawFooter(status == nullptr ? "Toque em uma rede" : status, TFT_DARKGREEN);
+}
+
+void UiService::showWifiPassword(const char* ssid, const char* password, const char* keyPage, const char* status) {
+  resetTouchZones();
+  display_.fillScreen(TFT_BLACK);
+  drawHeader("WiFi", ssid == nullptr ? "" : ssid);
+  drawBackButton();
+
+  display_.setTextDatum(textdatum_t::top_left);
+  display_.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
+  display_.setFont(&fonts::Font2);
+  drawTextFit(String("Senha: ") + (password == nullptr ? "" : password), 12, 54, display_.width() - 24,
+              TFT_LIGHTGREY, TFT_BLACK);
+
+  const int keyColumns = 6;
+  const int keyCount = 18;
+  const int gap = 4;
+  const int keyW = (display_.width() - 16 - ((keyColumns - 1) * gap)) / keyColumns;
+  const int keyH = 24;
+  const int startX = 8;
+  const int startY = 80;
+
+  for (size_t i = 0; i < keyCount; ++i) {
+    const char key = (keyPage != nullptr && keyPage[i] != '\0') ? keyPage[i] : ' ';
+    char label[2] = {key, '\0'};
+    const int col = static_cast<int>(i % keyColumns);
+    const int row = static_cast<int>(i / keyColumns);
+    drawButton(startX + col * (keyW + gap), startY + row * (keyH + gap), keyW, keyH, label, TFT_NAVY, TFT_WHITE,
+               key == ' ' ? UiAction::None : wifiKeyAction(i));
+  }
+
+  drawButton(8, 176, 72, 30, "Teclas", TFT_DARKCYAN, TFT_WHITE, UiAction::WifiKeyboardNext);
+  drawButton(88, 176, 82, 30, "Apagar", TFT_MAROON, TFT_WHITE, UiAction::WifiBackspace);
+  drawButton(178, 176, 132, 30, "Conectar", TFT_DARKGREEN, TFT_WHITE, UiAction::WifiConnect);
+
+  drawFooter(status == nullptr ? "Digite a senha" : status, TFT_DARKGREEN);
+}
+
+void UiService::showStatus(const char* message) {
+  drawFooter(message, TFT_DARKGREEN);
+  Serial.print("STATUS: ");
+  Serial.println(message);
+}
+
+void UiService::showError(const char* message) {
+  drawFooter(message, TFT_MAROON);
+  Serial.print("ERROR: ");
+  Serial.println(message);
+}
+
+void UiService::resetTouchZones() {
+  touchZoneCount_ = 0;
+}
+
+void UiService::addTouchZone(int x, int y, int w, int h, UiAction action) {
+  if (touchZoneCount_ >= MaxTouchZones || action == UiAction::None) {
+    return;
+  }
+
+  touchZones_[touchZoneCount_].x = static_cast<int16_t>(x);
+  touchZones_[touchZoneCount_].y = static_cast<int16_t>(y);
+  touchZones_[touchZoneCount_].w = static_cast<int16_t>(w);
+  touchZones_[touchZoneCount_].h = static_cast<int16_t>(h);
+  touchZones_[touchZoneCount_].action = action;
+  ++touchZoneCount_;
+}
+
+UiAction UiService::hitTest(uint16_t x, uint16_t y) const {
+  for (size_t i = 0; i < touchZoneCount_; ++i) {
+    const TouchZone& zone = touchZones_[i];
+    if (x >= zone.x && x < zone.x + zone.w && y >= zone.y && y < zone.y + zone.h) {
+      return zone.action;
+    }
+  }
+
+  return UiAction::None;
+}
+
+UiAction UiService::browserSelectAction(size_t row) const {
+  switch (row) {
+    case 0:
+      return UiAction::BrowserSelect0;
+    case 1:
+      return UiAction::BrowserSelect1;
+    case 2:
+      return UiAction::BrowserSelect2;
+    case 3:
+      return UiAction::BrowserSelect3;
+    default:
+      return UiAction::None;
+  }
+}
+
+UiAction UiService::wifiSelectAction(size_t row) const {
+  switch (row) {
+    case 0:
+      return UiAction::WifiSelect0;
+    case 1:
+      return UiAction::WifiSelect1;
+    case 2:
+      return UiAction::WifiSelect2;
+    case 3:
+      return UiAction::WifiSelect3;
+    default:
+      return UiAction::None;
+  }
+}
+
+UiAction UiService::wifiKeyAction(size_t index) const {
+  switch (index) {
+    case 0:
+      return UiAction::WifiKey0;
+    case 1:
+      return UiAction::WifiKey1;
+    case 2:
+      return UiAction::WifiKey2;
+    case 3:
+      return UiAction::WifiKey3;
+    case 4:
+      return UiAction::WifiKey4;
+    case 5:
+      return UiAction::WifiKey5;
+    case 6:
+      return UiAction::WifiKey6;
+    case 7:
+      return UiAction::WifiKey7;
+    case 8:
+      return UiAction::WifiKey8;
+    case 9:
+      return UiAction::WifiKey9;
+    case 10:
+      return UiAction::WifiKey10;
+    case 11:
+      return UiAction::WifiKey11;
+    case 12:
+      return UiAction::WifiKey12;
+    case 13:
+      return UiAction::WifiKey13;
+    case 14:
+      return UiAction::WifiKey14;
+    case 15:
+      return UiAction::WifiKey15;
+    case 16:
+      return UiAction::WifiKey16;
+    case 17:
+      return UiAction::WifiKey17;
+    default:
+      return UiAction::None;
+  }
+}
+
+void UiService::drawHeader(const char* title, const char* subtitle) {
+  const int margin = 12;
+
+  display_.setTextDatum(textdatum_t::top_left);
+  display_.setTextColor(TFT_WHITE, TFT_BLACK);
+  display_.setFont(&fonts::Font2);
+  display_.drawString(title, margin + 62, 10);
+
+  display_.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
+  display_.drawString(subtitle, margin + 62, 30);
+  display_.drawFastHLine(margin, 48, display_.width() - (margin * 2), TFT_DARKGREY);
+}
+
+void UiService::drawBackButton() {
+  drawButton(8, 8, 58, 28, "Voltar", TFT_DARKGREY, TFT_WHITE, UiAction::Back);
+  addTouchZone(0, 0, 104, 52, UiAction::Back);
+}
+
+void UiService::drawButton(int x, int y, int w, int h, const char* label, uint16_t fill, uint16_t textColor,
+                           UiAction action) {
+  const bool enabled = action != UiAction::None;
+  const uint16_t stroke = enabled ? TFT_WHITE : TFT_DARKGREY;
+  const uint16_t text = enabled ? textColor : TFT_DARKGREY;
+
+  display_.fillRoundRect(x, y, w, h, 5, fill);
+  display_.drawRoundRect(x, y, w, h, 5, stroke);
+
+  String fitted = label;
+  display_.setTextColor(text, fill);
+  display_.setFont(&fonts::Font2);
+  if (display_.textWidth(fitted) > w - 12) {
+    while (fitted.length() > 3 && display_.textWidth(fitted + "..") > w - 12) {
+      fitted.remove(fitted.length() - 1);
+    }
+    fitted += "..";
+  }
+
+  display_.setTextDatum(textdatum_t::middle_center);
+  display_.drawString(fitted, x + (w / 2), y + (h / 2));
+  display_.setTextDatum(textdatum_t::top_left);
+  addTouchZone(x, y, w, h, action);
+}
+
+void UiService::drawTextFit(const String& text, int x, int y, int w, uint16_t textColor, uint16_t background) {
+  String fitted = text;
+  display_.setTextDatum(textdatum_t::top_left);
+  display_.setTextColor(textColor, background);
+  display_.setFont(&fonts::Font2);
+
+  if (display_.textWidth(fitted) > w) {
+    while (fitted.length() > 3 && display_.textWidth(fitted + "..") > w) {
+      fitted.remove(fitted.length() - 1);
+    }
+    fitted += "..";
+  }
+
+  display_.drawString(fitted, x, y);
+}
+
+void UiService::drawFooter(const char* message, uint16_t color) {
+  const int footerH = 24;
+  const int y = display_.height() - footerH;
+  String footerText(message == nullptr ? "" : message);
+  if (footerSuffix_.length() > 0) {
+    if (footerText.length() > 0) {
+      footerText += " | ";
+    }
+    footerText += footerSuffix_;
+  }
+
+  display_.fillRect(0, y, display_.width(), footerH, color);
+  display_.setTextDatum(textdatum_t::middle_left);
+  display_.setTextColor(TFT_WHITE, color);
+  display_.setFont(&fonts::Font2);
+  drawTextFit(footerText, 8, y + 4, display_.width() - 16, TFT_WHITE, color);
+  display_.setTextDatum(textdatum_t::top_left);
+}
+
+void UiService::formatTime(uint32_t ms, char* output, size_t outputSize) const {
+  const uint32_t totalSeconds = ms / 1000;
+  const uint32_t minutes = totalSeconds / 60;
+  const uint32_t seconds = totalSeconds % 60;
+  snprintf(output, outputSize, "%02u:%02u", static_cast<unsigned>(minutes), static_cast<unsigned>(seconds));
+}
+
+}  // namespace ui
