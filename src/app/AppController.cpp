@@ -30,7 +30,9 @@ void AppController::begin() {
 
   settingsReady_ = settings_.begin();
   applyTapProfile(settings_.tapProfile());
+  audioTestLevel_ = settings_.audioVolume();
   audioReady_ = audio_.begin();
+  audio_.setVolume(audioTestLevel_);
   audio_.setTapTimingPermille(tapTimingPermille_);
   audio_.setTapAmplitude(tapAmplitude_);
   audio_.setTapInverted(tapInverted_);
@@ -95,6 +97,9 @@ void AppController::setState(AppState nextState) {
     case AppState::TapSettings:
       showTapSettingsScreen();
       break;
+    case AppState::AudioTest:
+      showAudioTestScreen();
+      break;
     case AppState::WifiList:
       showWifiListScreen(ui::text::SelectNetwork);
       break;
@@ -113,6 +118,7 @@ void AppController::handleAction(ui::UiAction action) {
   }
 
   handleNavigationAction(action) || handleTapSettingsAction(action) ||
+      handleAudioTestAction(action) ||
       handleBrowserAction(action) || handlePlayerAction(action) ||
       handleWifiAction(action);
 }
@@ -137,8 +143,39 @@ bool AppController::handleNavigationAction(ui::UiAction action) {
     case ui::UiAction::OpenTapSettings:
       setState(AppState::TapSettings);
       return true;
+    case ui::UiAction::OpenAudioTest:
+      setState(AppState::AudioTest);
+      return true;
     case ui::UiAction::Back:
       goBack();
+      return true;
+    default:
+      return false;
+  }
+}
+
+bool AppController::handleAudioTestAction(ui::UiAction action) {
+  switch (action) {
+    case ui::UiAction::AudioTone1000:
+      startAudioTestTone(1000);
+      return true;
+    case ui::UiAction::AudioTone1200:
+      startAudioTestTone(1200);
+      return true;
+    case ui::UiAction::AudioTone2400:
+      startAudioTestTone(2400);
+      return true;
+    case ui::UiAction::AudioLevelDown:
+      changeAudioTestLevel(-16);
+      return true;
+    case ui::UiAction::AudioLevelUp:
+      changeAudioTestLevel(16);
+      return true;
+    case ui::UiAction::AudioTestStop:
+      audio_.stop();
+      audioTestWasPlaying_ = false;
+      audioTestFrequencyHz_ = 0;
+      showAudioTestScreen(ui::text::ToneStopped);
       return true;
     default:
       return false;
@@ -347,6 +384,16 @@ bool AppController::handleWifiAction(ui::UiAction action) {
 void AppController::serviceAudio() {
   audio_.update();
 
+  if (state_ == AppState::AudioTest) {
+    const bool playing = audio_.isPlaying();
+    if (audioTestWasPlaying_ && !playing) {
+      audioTestWasPlaying_ = false;
+      audioTestFrequencyHz_ = 0;
+      showAudioTestScreen(ui::text::ToneFinished);
+    }
+    return;
+  }
+
   if (state_ != AppState::Player) {
     playerWasPlaying_ = audio_.isPlaying();
     return;
@@ -412,6 +459,39 @@ void AppController::showPlayerScreen(const char* status, bool playing) {
 void AppController::showTapSettingsScreen(const char* status, bool error) {
   ui_.showTapSettings(tapTimingPermille_, tapAmplitude_, tapInverted_, status,
                       error);
+}
+
+void AppController::showAudioTestScreen(const char* status, bool error) {
+  ui_.showAudioTest(audioTestFrequencyHz_, audioTestLevel_, audio_.isPlaying(),
+                    status, error);
+}
+
+void AppController::startAudioTestTone(uint16_t frequencyHz) {
+  audio_.setVolume(audioTestLevel_);
+  if (!audio_.playTestTone(frequencyHz, 5000)) {
+    audioTestWasPlaying_ = false;
+    audioTestFrequencyHz_ = 0;
+    showAudioTestScreen(ui::text::ToneFailed, true);
+    return;
+  }
+
+  audioTestFrequencyHz_ = frequencyHz;
+  audioTestWasPlaying_ = true;
+  showAudioTestScreen(ui::text::FiveSeconds);
+}
+
+void AppController::changeAudioTestLevel(int16_t delta) {
+  const int16_t requested = static_cast<int16_t>(audioTestLevel_) + delta;
+  const uint8_t next =
+      static_cast<uint8_t>(requested < 32 ? 32 : (requested > 255 ? 255 : requested));
+  if (!settings_.saveAudioVolume(next)) {
+    showAudioTestScreen(ui::text::SettingsSaveFailed, true);
+    return;
+  }
+
+  audioTestLevel_ = next;
+  audio_.setVolume(audioTestLevel_);
+  showAudioTestScreen(ui::text::SettingsSaved);
 }
 
 void AppController::applyTapProfile(const settings::TapProfile& profile) {
@@ -532,6 +612,12 @@ void AppController::goBack() {
       setState(AppState::Home);
       break;
     case AppState::TapSettings:
+      setState(AppState::Settings);
+      break;
+    case AppState::AudioTest:
+      audio_.stop();
+      audioTestWasPlaying_ = false;
+      audioTestFrequencyHz_ = 0;
       setState(AppState::Settings);
       break;
     case AppState::WifiList:

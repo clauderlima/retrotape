@@ -19,6 +19,7 @@ enum class AppState {
   Player,
   Settings,
   TapSettings,
+  AudioTest,
   WifiList,
   WifiPassword,
   Error,
@@ -46,6 +47,7 @@ class AppController {
   void handleAction(ui::UiAction action);
   bool handleNavigationAction(ui::UiAction action);
   bool handleTapSettingsAction(ui::UiAction action);
+  bool handleAudioTestAction(ui::UiAction action);
   bool handleBrowserAction(ui::UiAction action);
   bool handlePlayerAction(ui::UiAction action);
   bool handleWifiAction(ui::UiAction action);
@@ -55,6 +57,9 @@ class AppController {
   void showBrowser();
   void showPlayerScreen(const char* status, bool playing);
   void showTapSettingsScreen(const char* status = nullptr, bool error = false);
+  void showAudioTestScreen(const char* status = nullptr, bool error = false);
+  void startAudioTestTone(uint16_t frequencyHz);
+  void changeAudioTestLevel(int16_t delta);
   void applyTapProfile(const settings::TapProfile& profile);
   bool persistTapProfile();
   void scanWifiNetworks(const char* status);
@@ -99,6 +104,9 @@ class AppController {
   String selectedWifiSsid_;
   String wifiPassword_;
   bool playerWasPlaying_ = false;
+  bool audioTestWasPlaying_ = false;
+  uint16_t audioTestFrequencyHz_ = 0;
+  uint8_t audioTestLevel_ = settings::SettingsService::DefaultAudioVolume;
   uint32_t lastPlayerProgressMs_ = 0;
   uint32_t lastWebFooterMs_ = 0;
   uint32_t lastHeartbeatMs_ = 0;

@@ -20,6 +20,9 @@ void DacAudioOutput::update() {
     case PlaybackKind::Cas:
       casPlayer_.update();
       break;
+    case PlaybackKind::TestTone:
+      output_.updateTestTone();
+      break;
     case PlaybackKind::None:
     default:
       return;
@@ -31,6 +34,7 @@ void DacAudioOutput::stop() {
   wavPlayer_.stop();
   tapPlayer_.stop();
   casPlayer_.stop();
+  output_.stopTestTone();
   playbackKind_ = PlaybackKind::None;
   output_.writeIdle();
   Serial.println("Audio output stopped");
@@ -42,7 +46,11 @@ void DacAudioOutput::setVolume(uint8_t volume) {
 
 bool DacAudioOutput::playTestTone(uint16_t frequencyHz, uint32_t durationMs) {
   stop();
-  return output_.playTestTone(frequencyHz, durationMs);
+  if (!output_.playTestTone(frequencyHz, durationMs)) {
+    return false;
+  }
+  playbackKind_ = PlaybackKind::TestTone;
+  return true;
 }
 
 bool DacAudioOutput::playWavFile(const char* path) {
@@ -80,6 +88,8 @@ bool DacAudioOutput::isPlaying() const {
       return tapPlayer_.isPlaying();
     case PlaybackKind::Cas:
       return casPlayer_.isPlaying();
+    case PlaybackKind::TestTone:
+      return output_.isTestTonePlaying();
     case PlaybackKind::None:
     default:
       return false;
@@ -94,6 +104,8 @@ uint32_t DacAudioOutput::playbackElapsedMs() const {
       return tapPlayer_.elapsedMs();
     case PlaybackKind::Cas:
       return casPlayer_.elapsedMs();
+    case PlaybackKind::TestTone:
+      return output_.testToneElapsedMs();
     case PlaybackKind::None:
     default:
       return 0;
@@ -108,6 +120,8 @@ uint32_t DacAudioOutput::playbackDurationMs() const {
       return tapPlayer_.durationMs();
     case PlaybackKind::Cas:
       return casPlayer_.durationMs();
+    case PlaybackKind::TestTone:
+      return output_.testToneDurationMs();
     case PlaybackKind::None:
     default:
       return 0;

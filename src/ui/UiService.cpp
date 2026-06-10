@@ -145,7 +145,7 @@ void UiService::showPlayer(const char* filename, const char* format, const char*
   drawHeader(text::Player, format);
   drawBackButton();
 
-  components_.drawPanel(12, 58, display_.width() - 24, 84);
+  components_.drawPanel(12, 58, display_.width() - 24, 72);
   display_.setTextDatum(textdatum_t::top_left);
   display_.setTextColor(theme::TextSecondary, theme::Surface);
   display_.setFont(&fonts::Font0);
@@ -219,14 +219,63 @@ void UiService::showSettings(const char* displayDriver, bool sdMounted, const ch
   display_.setTextColor(sdMounted ? theme::Success : theme::Danger, theme::Surface);
   display_.drawString(sdMounted ? text::Mounted : text::NotMounted, 112, 94);
 
-  drawTextFit(String(wifiStatus == nullptr ? "Wi-Fi: -" : wifiStatus), 22, 120,
+  drawTextFit(String(wifiStatus == nullptr ? "Wi-Fi: -" : wifiStatus), 22, 112,
               display_.width() - 44, theme::TextSecondary, theme::Surface);
 
-  drawButton(18, 152, 132, 40, text::WifiSetup, theme::Info, theme::TextPrimary,
+  drawButton(18, 140, 132, 34, text::WifiSetup, theme::Info, theme::TextPrimary,
              UiAction::OpenWifiSettings, UiIcon::Wifi);
-  drawButton(168, 152, 132, 40, text::TapSetup, theme::Secondary,
+  drawButton(168, 140, 132, 34, text::TapSetup, theme::Secondary,
              theme::TextPrimary, UiAction::OpenTapSettings, UiIcon::Sliders);
+  drawButton(82, 182, 156, 28, text::AudioTest, theme::Accent,
+             theme::TextPrimary, UiAction::OpenAudioTest, UiIcon::Wave);
   drawFooter(text::SettingsReady, theme::Primary);
+}
+
+void UiService::showAudioTest(uint16_t frequencyHz, uint8_t level, bool playing,
+                              const char* status, bool error) {
+  resetTouchZones();
+  components_.clear();
+  drawHeader(text::AudioTest, text::AudioDiagnostics);
+  drawBackButton();
+
+  components_.drawPanel(12, 58, display_.width() - 24, 56);
+  display_.setTextDatum(textdatum_t::top_left);
+  display_.setFont(&fonts::Font2);
+  display_.setTextColor(theme::TextSecondary, theme::Surface);
+  display_.drawString(text::TestTone, 22, 68);
+
+  char frequency[20] = {};
+  snprintf(frequency, sizeof(frequency), frequencyHz == 0 ? "Ready" : "%u Hz",
+           static_cast<unsigned>(frequencyHz));
+  display_.setTextColor(playing ? theme::Primary : theme::TextPrimary,
+                        theme::Surface);
+  display_.drawString(frequency, 118, 68);
+
+  char levelText[18] = {};
+  snprintf(levelText, sizeof(levelText), "%s %u%%", text::OutputLevel,
+           static_cast<unsigned>((static_cast<uint16_t>(level) * 100U) / 255U));
+  display_.setTextColor(theme::Accent, theme::Surface);
+  display_.drawString(levelText, 22, 91);
+  drawButton(198, 82, 48, 26, "-", theme::Info, theme::TextPrimary,
+             UiAction::AudioLevelDown);
+  drawButton(254, 82, 48, 26, "+", theme::Success, theme::TextPrimary,
+             UiAction::AudioLevelUp);
+
+  drawButton(12, 124, 92, 34, "1 kHz", theme::Primary, theme::TextPrimary,
+             UiAction::AudioTone1000, UiIcon::Wave);
+  drawButton(114, 124, 92, 34, "1200 Hz", theme::Info, theme::TextPrimary,
+             UiAction::AudioTone1200, UiIcon::Wave);
+  drawButton(216, 124, 92, 34, "2400 Hz", theme::Secondary,
+             theme::TextPrimary, UiAction::AudioTone2400, UiIcon::Wave);
+
+  drawButton(104, 170, 112, 34, text::Stop, theme::Danger,
+             theme::TextPrimary,
+             playing ? UiAction::AudioTestStop : UiAction::None,
+             UiIcon::Stop);
+
+  drawFooter(status == nullptr ? text::ToneReady : status,
+             error ? theme::Danger
+                   : (playing ? theme::Primary : theme::Success));
 }
 
 void UiService::showTapSettings(uint16_t timingPermille, uint8_t amplitude,

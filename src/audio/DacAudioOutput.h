@@ -37,6 +37,7 @@ class DacAudioOutput : public AudioOutput {
     Wav,
     Tap,
     Cas,
+    TestTone,
   };
 
   void clearFinishedPlayback();

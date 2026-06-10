@@ -16,16 +16,21 @@ struct TapProfile {
 
 class SettingsService {
  public:
+  static constexpr uint8_t DefaultAudioVolume = 180;
+
   bool begin();
   const TapProfile& tapProfile() const;
   bool saveTapProfile(const TapProfile& profile);
   bool restoreTapDefaults();
+  uint8_t audioVolume() const;
+  bool saveAudioVolume(uint8_t volume);
 
  private:
   static TapProfile validated(const TapProfile& profile);
-  bool writeTapProfile();
+  bool writeSettings();
 
   TapProfile tapProfile_;
+  uint8_t audioVolume_ = DefaultAudioVolume;
 };
 
 }  // namespace settings

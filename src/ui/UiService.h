@@ -26,6 +26,13 @@ enum class UiAction : uint8_t {
   PlayerStop,
   OpenWifiSettings,
   OpenTapSettings,
+  OpenAudioTest,
+  AudioTone1000,
+  AudioTone1200,
+  AudioTone2400,
+  AudioLevelDown,
+  AudioLevelUp,
+  AudioTestStop,
   TapTimingDown,
   TapTimingUp,
   TapLevelDown,
@@ -74,6 +81,8 @@ class UiService {
                   uint32_t durationMs = 0, bool playing = false);
   void updatePlayerProgress(uint32_t elapsedMs, uint32_t durationMs, bool playing);
   void showSettings(const char* displayDriver, bool sdMounted, const char* wifiStatus);
+  void showAudioTest(uint16_t frequencyHz, uint8_t level, bool playing,
+                     const char* status, bool error = false);
   void showTapSettings(uint16_t timingPermille, uint8_t amplitude, bool inverted,
                        const char* status = nullptr, bool error = false);
   void showWifiList(const network::WifiNetworkInfo* networks, size_t networkCount, size_t offset, size_t totalCount,

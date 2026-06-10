@@ -85,6 +85,12 @@ a facade that selects one format-specific player:
 `NoopAudioOutput` remains available as a harmless implementation for tests or
 future host-side development.
 
+The audio diagnostics screen uses the same facade to generate non-blocking
+1 kHz, 1200 Hz, and 2400 Hz square-wave test tones. The main loop remains free
+to poll touch input, so Stop is responsive during a test. Its output level is
+the persistent global DAC level used by WAV, CAS, and diagnostic tones; TAP
+continues to use its independently validated amplitude setting.
+
 ### TAP timing contract
 
 The hardware-validated TAP implementation remains isolated in `TapPlayer`.

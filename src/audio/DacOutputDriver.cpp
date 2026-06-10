@@ -26,18 +26,72 @@ bool DacOutputDriver::playTestTone(uint16_t frequencyHz, uint32_t durationMs) {
     return false;
   }
 
-  const uint32_t halfPeriodUs = 500000UL / frequencyHz;
-  const uint32_t endAt = millis() + durationMs;
-  uint8_t level = 64;
+  stopTestTone();
+  testToneHalfPeriodUs_ = 500000UL / frequencyHz;
+  if (testToneHalfPeriodUs_ == 0) {
+    return false;
+  }
+  testToneDurationMs_ = durationMs;
+  testToneStartedAtMs_ = millis();
+  testToneNextEdgeUs_ = micros();
+  testToneHigh_ = false;
+  testTonePlaying_ = true;
 
-  while (static_cast<int32_t>(millis() - endAt) < 0) {
-    writeSample(level);
-    level = level == 64 ? 192 : 64;
-    delayMicroseconds(halfPeriodUs);
+  Serial.print("Audio test tone started: ");
+  Serial.print(frequencyHz);
+  Serial.print(" Hz for ");
+  Serial.print(durationMs);
+  Serial.println(" ms");
+  return true;
+}
+
+void DacOutputDriver::updateTestTone() {
+  if (!testTonePlaying_) {
+    return;
   }
 
+  if (millis() - testToneStartedAtMs_ >= testToneDurationMs_) {
+    stopTestTone();
+    return;
+  }
+
+  const uint32_t nowUs = micros();
+  if (static_cast<int32_t>(nowUs - testToneNextEdgeUs_) < 0) {
+    return;
+  }
+
+  const uint32_t lateUs = nowUs - testToneNextEdgeUs_;
+  const uint32_t elapsedPeriods = (lateUs / testToneHalfPeriodUs_) + 1;
+  if ((elapsedPeriods & 1U) != 0) {
+    testToneHigh_ = !testToneHigh_;
+    writeSample(testToneHigh_ ? 192 : 64);
+  }
+  testToneNextEdgeUs_ += elapsedPeriods * testToneHalfPeriodUs_;
+}
+
+void DacOutputDriver::stopTestTone() {
+  if (testTonePlaying_) {
+    Serial.println("Audio test tone stopped");
+  }
+  testTonePlaying_ = false;
+  testToneHigh_ = false;
   writeIdle();
-  return true;
+}
+
+bool DacOutputDriver::isTestTonePlaying() const {
+  return testTonePlaying_;
+}
+
+uint32_t DacOutputDriver::testToneElapsedMs() const {
+  if (!testTonePlaying_) {
+    return 0;
+  }
+  const uint32_t elapsed = millis() - testToneStartedAtMs_;
+  return elapsed > testToneDurationMs_ ? testToneDurationMs_ : elapsed;
+}
+
+uint32_t DacOutputDriver::testToneDurationMs() const {
+  return testToneDurationMs_;
 }
 
 void DacOutputDriver::writeSample(uint8_t sample) {

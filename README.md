@@ -14,6 +14,8 @@ digital cassette player for vintage computers.
 - elapsed time, duration, progress bar, and immediate Stop control;
 - adjustable TAP timing, output level, and polarity;
 - persistent TAP settings with one-touch restoration of the validated profile;
+- non-blocking 1 kHz, 1200 Hz, and 2400 Hz output diagnostics;
+- persistent DAC output level shared by WAV, CAS, and test tones;
 - on-device Wi-Fi scan and password keyboard;
 - web upload and file listing for `.tap` and `.cas` files;
 - fallback `RetroTape` access point when no saved Wi-Fi is available.

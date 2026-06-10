@@ -60,6 +60,16 @@ Hardware note for the validated machine:
 - [ ] Stop interrupts WAV playback.
 - [ ] Elapsed time and progress are accurate.
 
+## Audio diagnostics
+
+- [ ] Settings opens the Audio test screen.
+- [ ] 1 kHz, 1200 Hz, and 2400 Hz tones start without blocking touch input.
+- [ ] Each test tone stops automatically after five seconds.
+- [ ] Stop interrupts an active tone promptly.
+- [ ] Output level changes are audible or measurable.
+- [ ] Output level persists after reboot.
+- [ ] Oscilloscope frequency is within the expected tolerance for each tone.
+
 ## Wi-Fi and web server
 
 - [ ] Saved Wi-Fi credentials reconnect after reboot.
@@ -89,4 +99,3 @@ Hardware note for the validated machine:
 - [ ] Record an oscilloscope capture of the TAP pilot and data pulses.
 - [ ] Record the successful computer load result.
 - [ ] Store the tested file checksum with the test notes.
-
